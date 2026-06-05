@@ -1,4 +1,7 @@
 <Solution>
   <Project Path="SqlDeployer.Core.Tests/SqlDeployer.Core.Tests.csproj" />
   <Project Path="SqlDeployer.Core/SqlDeployer.Core.csproj" />
+  <Project Path="SqlDeployerGui/SqlDeployerGui.csproj">
+    <Platform Project="x64" />
+  </Project>
 </Solution>
