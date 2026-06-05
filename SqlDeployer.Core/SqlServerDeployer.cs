@@ -196,6 +196,27 @@ public class SqlServerDeployer : ISqlDeployer
         return deployedVersions;
     }
 
+    // Lists user databases on the server (excludes the 4 system databases
+    // master/tempdb/model/msdb via database_id > 4). Errors propagate to the caller.
+    public async Task<List<string>> GetDatabases(string connectionString)
+    {
+        var databases = new List<string>();
+
+        using var connection = new SqlConnection(connectionString);
+        await connection.OpenAsync();
+
+        using var command = connection.CreateCommand();
+        command.CommandText = "SELECT name FROM sys.databases WHERE database_id > 4 ORDER BY name";
+
+        using var reader = await command.ExecuteReaderAsync();
+        while (await reader.ReadAsync())
+        {
+            databases.Add(reader.GetString(0));
+        }
+
+        return databases;
+    }
+
     public async Task<List<DeploymentHistory>> GetDeploymentHistory(string connectionString)
     {
         var history = new List<DeploymentHistory>();

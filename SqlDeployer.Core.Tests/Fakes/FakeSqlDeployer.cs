@@ -29,4 +29,13 @@ public class FakeSqlDeployer : ISqlDeployer
 
     public Task<List<DeploymentHistory>> GetDeploymentHistory(string connectionString)
         => Task.FromResult(new List<DeploymentHistory>(History));
+
+    public List<string> Databases { get; set; } = new();
+    public Exception? GetDatabasesError { get; set; }
+
+    public Task<List<string>> GetDatabases(string connectionString)
+    {
+        if (GetDatabasesError is not null) throw GetDatabasesError;
+        return Task.FromResult(new List<string>(Databases));
+    }
 }

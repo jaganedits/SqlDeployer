@@ -11,4 +11,6 @@ public interface ISqlDeployer
         CancellationToken cancellationToken = default);
 
     Task<List<DeploymentHistory>> GetDeploymentHistory(string connectionString);
+
+    Task<List<string>> GetDatabases(string connectionString);
 }
