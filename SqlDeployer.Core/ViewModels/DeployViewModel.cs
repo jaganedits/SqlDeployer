@@ -3,6 +3,7 @@ using System.IO;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Microsoft.Data.SqlClient;
+using SqlDeployer;
 using SqlDeployer.Models;
 using SqlDeployer.Services;
 
@@ -13,6 +14,7 @@ public partial class DeployViewModel : ObservableObject
     private const string Environment = "GUI";
 
     private readonly DeploymentRunner _runner;
+    private readonly ISqlDeployer _deployer;
     private readonly IDialogService _dialogs;
     private readonly SettingsService _settings;
     private CancellationTokenSource? _cts;
@@ -35,15 +37,17 @@ public partial class DeployViewModel : ObservableObject
 
     public ObservableCollection<LogEntry> SuccessLog { get; } = new();
     public ObservableCollection<LogEntry> ErrorLog { get; } = new();
+    public ObservableCollection<string> Databases { get; } = new();
 
     // Tab header labels with live counts (e.g. "Success (3)"), mirroring the
     // original WinForms "Success Log(n)" / "Error Log(n)" segmented tabs.
     public string SuccessHeader => $"Success ({SuccessLog.Count})";
     public string ErrorHeader => $"Errors ({ErrorLog.Count})";
 
-    public DeployViewModel(DeploymentRunner runner, IDialogService dialogs, SettingsService settings)
+    public DeployViewModel(DeploymentRunner runner, ISqlDeployer deployer, IDialogService dialogs, SettingsService settings)
     {
         _runner = runner;
+        _deployer = deployer;
         _dialogs = dialogs;
         _settings = settings;
 
@@ -170,6 +174,36 @@ public partial class DeployViewModel : ObservableObject
         {
             Status = "Cancelling...";
             _cts.Cancel();
+        }
+    }
+
+    [RelayCommand]
+    private async Task LoadDatabases()
+    {
+        if (string.IsNullOrWhiteSpace(Server))
+        {
+            await _dialogs.ShowMessageAsync("Validation", "Enter a Server first to load its databases.");
+            return;
+        }
+
+        IsBusy = true;
+        Status = "Loading databases...";
+        try
+        {
+            var cs = ConnectionStringFactory.BuildForServer(Server, Login, Password);
+            var names = await _deployer.GetDatabases(cs);
+            Databases.Clear();
+            foreach (var name in names) Databases.Add(name);
+            Status = Databases.Count == 0 ? "No user databases found." : $"{Databases.Count} database(s) loaded.";
+        }
+        catch (Exception ex)
+        {
+            Status = "Failed to load databases.";
+            await _dialogs.ShowMessageAsync("Error", ex.Message);
+        }
+        finally
+        {
+            IsBusy = false;
         }
     }
 

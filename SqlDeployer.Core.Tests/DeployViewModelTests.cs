@@ -18,7 +18,7 @@ public class DeployViewModelTests
         dialogs ??= new FakeDialogService();
         settings ??= new SettingsService(Path.Combine(
             Path.GetTempPath(), "sqldeploy_vm_" + Guid.NewGuid().ToString("N") + ".json"));
-        return new DeployViewModel(new DeploymentRunner(deployer), dialogs, settings);
+        return new DeployViewModel(new DeploymentRunner(deployer), deployer, dialogs, settings);
     }
 
     private static DeploymentScript Script(string v) => new($@"C:\s\{v}_x.sql", v, false);
@@ -138,5 +138,46 @@ public class DeployViewModelTests
         Assert.Equal("saved-db", vm.Database);
         Assert.Equal(string.Empty, vm.Password);
         File.Delete(settingsPath);
+    }
+
+    [Fact]
+    public async Task LoadDatabases_with_no_server_shows_dialog_and_loads_nothing()
+    {
+        var dialogs = new FakeDialogService();
+        var vm = NewVm(dialogs: dialogs);
+        vm.Server = "";
+
+        await vm.LoadDatabasesCommand.ExecuteAsync(null);
+
+        Assert.Single(dialogs.Messages);
+        Assert.Empty(vm.Databases);
+    }
+
+    [Fact]
+    public async Task LoadDatabases_populates_collection_from_deployer()
+    {
+        var deployer = new FakeSqlDeployer { Databases = { "AppDb", "Sales", "Hr" } };
+        var vm = NewVm(deployer: deployer);
+        vm.Server = "localhost";
+
+        await vm.LoadDatabasesCommand.ExecuteAsync(null);
+
+        Assert.Equal(3, vm.Databases.Count);
+        Assert.Contains("Sales", vm.Databases);
+        Assert.False(vm.IsBusy);
+    }
+
+    [Fact]
+    public async Task LoadDatabases_on_error_shows_dialog_and_clears_busy()
+    {
+        var deployer = new FakeSqlDeployer { GetDatabasesError = new InvalidOperationException("boom") };
+        var dialogs = new FakeDialogService();
+        var vm = NewVm(deployer: deployer, dialogs: dialogs);
+        vm.Server = "localhost";
+
+        await vm.LoadDatabasesCommand.ExecuteAsync(null);
+
+        Assert.Contains(dialogs.Messages, m => m.Message.Contains("boom"));
+        Assert.False(vm.IsBusy);
     }
 }

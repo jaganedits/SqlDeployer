@@ -25,7 +25,7 @@ public partial class App : Application
         var dialogs = new DialogService(Window);
         Settings = SettingsService.Default();
 
-        Deploy = new DeployViewModel(new DeploymentRunner(deployer), dialogs, Settings);
+        Deploy = new DeployViewModel(new DeploymentRunner(deployer), deployer, dialogs, Settings);
         History = new HistoryViewModel(deployer);
         SettingsVm = new SettingsViewModel(Settings);
 
