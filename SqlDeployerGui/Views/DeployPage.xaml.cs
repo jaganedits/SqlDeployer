@@ -12,4 +12,13 @@ public sealed partial class DeployPage : Page
         InitializeComponent();
         DataContext = Vm;
     }
+
+    private void DatabaseCombo_DropDownOpened(object sender, object e)
+    {
+        // Auto-load the list the first time the dropdown opens, if a server is set.
+        if (Vm.Databases.Count == 0 && !string.IsNullOrWhiteSpace(Vm.Server) && !Vm.IsBusy)
+        {
+            _ = Vm.LoadDatabasesCommand.ExecuteAsync(null);
+        }
+    }
 }

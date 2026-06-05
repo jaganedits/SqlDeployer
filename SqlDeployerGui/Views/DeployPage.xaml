@@ -35,9 +35,25 @@
                     <PasswordBox Header="Password" PlaceholderText="Enter password"
                                  Password="{Binding Password, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
                                  IsEnabled="{Binding IsIdle}" />
-                    <TextBox Header="Database" PlaceholderText="Target database name"
-                             Text="{Binding Database, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
-                             IsEnabled="{Binding IsIdle}" />
+                    <Grid ColumnSpacing="8">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="Auto" />
+                        </Grid.ColumnDefinitions>
+                        <ComboBox Grid.Column="0" Header="Database"
+                                  PlaceholderText="Target database name"
+                                  IsEditable="True"
+                                  HorizontalAlignment="Stretch"
+                                  ItemsSource="{Binding Databases}"
+                                  Text="{Binding Database, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                  IsEnabled="{Binding IsIdle}"
+                                  DropDownOpened="DatabaseCombo_DropDownOpened" />
+                        <Button Grid.Column="1" Content="&#xE72C;" FontFamily="Segoe Fluent Icons"
+                                VerticalAlignment="Bottom"
+                                ToolTipService.ToolTip="Load databases from server"
+                                Command="{Binding LoadDatabasesCommand}"
+                                IsEnabled="{Binding IsIdle}" />
+                    </Grid>
 
                     <Grid ColumnSpacing="8">
                         <Grid.ColumnDefinitions>
