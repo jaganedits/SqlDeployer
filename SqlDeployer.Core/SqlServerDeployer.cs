@@ -7,7 +7,7 @@ namespace SqlDeployer;
 public record DeploymentScript(string FileName, string Version, bool IsRollback);
 public record DeploymentHistory(string ScriptName, string Version, DateTime DeployedAt, bool Success, string? ErrorMessage = null);
 
-public class SqlServerDeployer
+public class SqlServerDeployer : ISqlDeployer
 {
     private readonly string _configPath;
     
