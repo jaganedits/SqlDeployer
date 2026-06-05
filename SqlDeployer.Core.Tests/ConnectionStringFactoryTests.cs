@@ -39,4 +39,22 @@ public class ConnectionStringFactoryTests
         var cs = ConnectionStringFactory.Build("s", "", "", "d");
         Assert.Contains("Encrypt=False", cs);
     }
+
+    [Fact]
+    public void BuildForServer_connects_to_master_with_sql_auth()
+    {
+        var cs = ConnectionStringFactory.BuildForServer("srv", "sa", "secret");
+        Assert.Contains("Initial Catalog=master", cs);
+        Assert.Contains("User ID=sa", cs);
+        Assert.Contains("Password=secret", cs);
+    }
+
+    [Fact]
+    public void BuildForServer_uses_windows_auth_when_login_blank()
+    {
+        var cs = ConnectionStringFactory.BuildForServer("srv", "  ", "");
+        Assert.Contains("Initial Catalog=master", cs);
+        Assert.Contains("Integrated Security=True", cs);
+        Assert.DoesNotContain("User ID=", cs);
+    }
 }

@@ -28,4 +28,29 @@ public static class ConnectionStringFactory
 
         return builder.ConnectionString;
     }
+
+    // Builds a connection string to the server's `master` database, for
+    // operations that don't target a specific catalog (e.g. enumerating databases).
+    public static string BuildForServer(string server, string login, string password)
+    {
+        var builder = new SqlConnectionStringBuilder
+        {
+            DataSource = server.Trim(),
+            InitialCatalog = "master",
+            Encrypt = false
+        };
+
+        var trimmedLogin = login.Trim();
+        if (!string.IsNullOrEmpty(trimmedLogin))
+        {
+            builder.UserID = trimmedLogin;
+            builder.Password = password;
+        }
+        else
+        {
+            builder.IntegratedSecurity = true;
+        }
+
+        return builder.ConnectionString;
+    }
 }
