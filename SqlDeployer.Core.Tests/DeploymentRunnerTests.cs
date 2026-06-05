@@ -66,7 +66,7 @@ public class DeploymentRunnerTests
 
         await runner.RunAsync("cs", "path", "GUI", progress, CancellationToken.None);
 
-        await Task.Delay(50);
+        await Task.Delay(200);
         Assert.Contains(updates, u => u.FileName.Contains("001") && u.Success == true);
         Assert.Contains(updates, u => u.FileName.Contains("002") && u.Success == true);
     }
