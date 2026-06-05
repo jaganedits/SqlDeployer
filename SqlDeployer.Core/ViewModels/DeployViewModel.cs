@@ -36,11 +36,19 @@ public partial class DeployViewModel : ObservableObject
     public ObservableCollection<LogEntry> SuccessLog { get; } = new();
     public ObservableCollection<LogEntry> ErrorLog { get; } = new();
 
+    // Tab header labels with live counts (e.g. "Success (3)"), mirroring the
+    // original WinForms "Success Log(n)" / "Error Log(n)" segmented tabs.
+    public string SuccessHeader => $"Success ({SuccessLog.Count})";
+    public string ErrorHeader => $"Errors ({ErrorLog.Count})";
+
     public DeployViewModel(DeploymentRunner runner, IDialogService dialogs, SettingsService settings)
     {
         _runner = runner;
         _dialogs = dialogs;
         _settings = settings;
+
+        SuccessLog.CollectionChanged += (_, _) => OnPropertyChanged(nameof(SuccessHeader));
+        ErrorLog.CollectionChanged += (_, _) => OnPropertyChanged(nameof(ErrorHeader));
 
         var saved = _settings.Load().LastConnection;
         if (saved is not null)

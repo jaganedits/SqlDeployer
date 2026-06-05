@@ -71,7 +71,10 @@
             <TextBlock Text="OUTPUT" Style="{StaticResource CaptionTextBlockStyle}"
                        Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
             <muxc:Pivot>
-                <muxc:PivotItem Header="Success">
+                <muxc:PivotItem>
+                    <muxc:PivotItem.Header>
+                        <TextBlock Text="{x:Bind Vm.SuccessHeader, Mode=OneWay}" />
+                    </muxc:PivotItem.Header>
                     <ListView ItemsSource="{Binding SuccessLog}" Height="160" SelectionMode="None">
                         <ListView.ItemTemplate>
                             <DataTemplate x:DataType="models:LogEntry">
@@ -82,7 +85,10 @@
                         </ListView.ItemTemplate>
                     </ListView>
                 </muxc:PivotItem>
-                <muxc:PivotItem Header="Errors">
+                <muxc:PivotItem>
+                    <muxc:PivotItem.Header>
+                        <TextBlock Text="{x:Bind Vm.ErrorHeader, Mode=OneWay}" />
+                    </muxc:PivotItem.Header>
                     <ListView ItemsSource="{Binding ErrorLog}" Height="160" SelectionMode="None">
                         <ListView.ItemTemplate>
                             <DataTemplate x:DataType="models:LogEntry">
