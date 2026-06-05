@@ -1,0 +1,6 @@
+root = true
+
+[*.cs]
+# Hand-authored custom controls; the designer is hand-written, so the WinForms
+# designer-serialization analyzer for custom properties does not apply here.
+dotnet_diagnostic.WFO1000.severity = none
