@@ -20,19 +20,33 @@ public partial class App : Application
 
     private SplashWindow? _splash;
     private DispatcherQueueTimer? _splashTimer;   // field so it isn't GC'd before it ticks
+    private DispatcherQueueTimer? _startTimer;
+    private bool _appBuilt;
 
     protected override void OnLaunched(LaunchActivatedEventArgs args)
     {
         _splash = new SplashWindow();
+
+        // Build the app only once the splash logo has drawn, so it doesn't appear
+        // blank while MainWindow is constructed on the UI thread.
+        _splash.ContentReady += BuildAppBehindSplash;
         _splash.Activate();
 
-        // Build the app only after the splash has painted its first frame. Doing the
-        // (UI-thread) construction inline would block the splash and leave it black.
-        _splash.DispatcherQueue.TryEnqueue(DispatcherQueuePriority.Low, BuildAppBehindSplash);
+        // Fallback: never wait indefinitely if the logo fails to report ready.
+        _startTimer = _splash.DispatcherQueue.CreateTimer();
+        _startTimer.Interval = TimeSpan.FromSeconds(1.5);
+        _startTimer.IsRepeating = false;
+        _startTimer.Tick += (timer, _) => { timer.Stop(); BuildAppBehindSplash(); };
+        _startTimer.Start();
     }
 
     private void BuildAppBehindSplash()
     {
+        if (_appBuilt) return;
+        _appBuilt = true;
+        _startTimer?.Stop();
+        _startTimer = null;
+
         Window = new MainWindow();
 
         var deployer = new SqlServerDeployer();
