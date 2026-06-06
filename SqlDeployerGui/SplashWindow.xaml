@@ -5,7 +5,7 @@
     xmlns:muxc="using:Microsoft.UI.Xaml.Controls"
     xmlns:anim="using:Microsoft.UI.Xaml.Media.Animation">
 
-    <Grid x:Name="Root" RequestedTheme="Dark" Opacity="1">
+    <Grid x:Name="Root" RequestedTheme="Dark">
         <Grid.Background>
             <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
                 <GradientStop Color="#FF0B0F14" Offset="0" />
@@ -46,7 +46,7 @@
         <Grid.Resources>
             <Storyboard x:Key="FadeIn">
                 <DoubleAnimation Storyboard.TargetName="Root" Storyboard.TargetProperty="Opacity"
-                                 From="0" To="1" Duration="0:0:0.6" />
+                                 From="0" To="1" Duration="0:0:0.5" />
             </Storyboard>
         </Grid.Resources>
     </Grid>

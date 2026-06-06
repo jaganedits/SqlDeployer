@@ -23,10 +23,16 @@ public partial class App : Application
 
     protected override void OnLaunched(LaunchActivatedEventArgs args)
     {
-        // Show the splash first; build the app behind it, then hand off.
         _splash = new SplashWindow();
         _splash.Activate();
 
+        // Build the app only after the splash has painted its first frame. Doing the
+        // (UI-thread) construction inline would block the splash and leave it black.
+        _splash.DispatcherQueue.TryEnqueue(DispatcherQueuePriority.Low, BuildAppBehindSplash);
+    }
+
+    private void BuildAppBehindSplash()
+    {
         Window = new MainWindow();
 
         var deployer = new SqlServerDeployer();
@@ -39,16 +45,27 @@ public partial class App : Application
 
         SettingsVm.ThemeChanged += (_, theme) => ApplyTheme(theme);
 
-        _splashTimer = _splash.DispatcherQueue.CreateTimer();
-        _splashTimer.Interval = TimeSpan.FromSeconds(2.6);
+        // Keep the splash up a short beat after the app is ready, then hand off.
+        _splashTimer = _splash!.DispatcherQueue.CreateTimer();
+        _splashTimer.Interval = TimeSpan.FromSeconds(1.6);
         _splashTimer.IsRepeating = false;
-        _splashTimer.Tick += (_, _) =>
+        _splashTimer.Tick += (timer, _) =>
         {
+            timer.Stop();
+            _splashTimer = null;
+
             Window.Activate();
             ApplyTheme(SettingsVm.SelectedTheme);
-            _splash?.Close();
-            _splash = null;
-            _splashTimer = null;
+
+            // Close the splash only after the main window has painted a frame,
+            // otherwise there is a brief black gap between the two windows.
+            var dq = Window.DispatcherQueue;
+            dq.TryEnqueue(DispatcherQueuePriority.Low, () =>
+                dq.TryEnqueue(DispatcherQueuePriority.Low, () =>
+                {
+                    _splash?.Close();
+                    _splash = null;
+                }));
         };
         _splashTimer.Start();
     }

@@ -1,5 +1,6 @@
 using System;
 using System.IO;
+using System.Runtime.InteropServices;
 using Microsoft.UI;
 using Microsoft.UI.Windowing;
 using Microsoft.UI.Xaml;
@@ -13,8 +14,17 @@ namespace SqlDeployerGui;
 // to MainWindow by App. WinUI 3 (unpackaged) has no built-in splash screen.
 public sealed partial class SplashWindow : Window
 {
-    private const int Width = 480;
-    private const int Height = 340;
+    // Size in DPI-independent (effective) pixels; scaled to physical below.
+    private const int WidthDip = 480;
+    private const int HeightDip = 400;
+
+    [DllImport("user32.dll")] private static extern uint GetDpiForWindow(IntPtr hwnd);
+    [DllImport("dwmapi.dll")] private static extern int DwmSetWindowAttribute(IntPtr hwnd, int attribute, ref int value, int size);
+
+    private const int DWMWA_WINDOW_CORNER_PREFERENCE = 33;
+    private const int DWMWA_BORDER_COLOR = 34;
+    private const int DWMWCP_ROUND = 2;
+    private const int DWMWA_COLOR_NONE = unchecked((int)0xFFFFFFFE);
 
     public SplashWindow()
     {
@@ -36,17 +46,32 @@ public sealed partial class SplashWindow : Window
             presenter.IsAlwaysOnTop = true;
         }
 
-        appWindow.Resize(new SizeInt32(Width, Height));
+        // Remove the Windows 11 white window border and round the corners.
+        int none = DWMWA_COLOR_NONE;
+        DwmSetWindowAttribute(hwnd, DWMWA_BORDER_COLOR, ref none, sizeof(int));
+        int round = DWMWCP_ROUND;
+        DwmSetWindowAttribute(hwnd, DWMWA_WINDOW_CORNER_PREFERENCE, ref round, sizeof(int));
+
+        // Size to physical pixels for the current monitor's scale so the content
+        // isn't clipped on high-DPI displays (e.g. 125%/150%).
+        double scale = GetDpiForWindow(hwnd) / 96.0;
+        int w = (int)Math.Round(WidthDip * scale);
+        int h = (int)Math.Round(HeightDip * scale);
+        appWindow.Resize(new SizeInt32(w, h));
 
         // Center on the primary work area.
         var area = DisplayArea.GetFromWindowId(windowId, DisplayAreaFallback.Primary);
         appWindow.Move(new PointInt32(
-            area.WorkArea.X + (area.WorkArea.Width - Width) / 2,
-            area.WorkArea.Y + (area.WorkArea.Height - Height) / 2));
+            area.WorkArea.X + (area.WorkArea.Width - w) / 2,
+            area.WorkArea.Y + (area.WorkArea.Height - h) / 2));
 
         LogoImage.Source = new BitmapImage(
             new Uri(Path.Combine(AppContext.BaseDirectory, "Assets", "logo.png")));
 
-        Root.Loaded += (_, _) => ((Storyboard)Root.Resources["FadeIn"]).Begin();
+        Root.Loaded += (_, _) =>
+        {
+            if (Root.Resources.TryGetValue("FadeIn", out var resource) && resource is Storyboard fadeIn)
+                fadeIn.Begin();
+        };
     }
 }
