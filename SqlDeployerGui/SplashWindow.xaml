@@ -1,0 +1,53 @@
+<Window
+    x:Class="SqlDeployerGui.SplashWindow"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:muxc="using:Microsoft.UI.Xaml.Controls"
+    xmlns:anim="using:Microsoft.UI.Xaml.Media.Animation">
+
+    <Grid x:Name="Root" RequestedTheme="Dark" Opacity="1">
+        <Grid.Background>
+            <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
+                <GradientStop Color="#FF0B0F14" Offset="0" />
+                <GradientStop Color="#FF131C26" Offset="1" />
+            </LinearGradientBrush>
+        </Grid.Background>
+
+        <Grid.RowDefinitions>
+            <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+
+        <!-- Brand: logo + name -->
+        <StackPanel Grid.Row="0" VerticalAlignment="Center" HorizontalAlignment="Center" Spacing="18">
+            <Image x:Name="LogoImage" Width="132" Height="132" HorizontalAlignment="Center" />
+            <StackPanel Spacing="2" HorizontalAlignment="Center">
+                <TextBlock Text="SQL Deploy" FontSize="30" FontWeight="SemiBold"
+                           Foreground="#FFEAF1F8" HorizontalAlignment="Center" />
+                <TextBlock Text="Migration Console" FontSize="14" CharacterSpacing="120"
+                           Foreground="#FF7E8B9C" HorizontalAlignment="Center" />
+            </StackPanel>
+            <muxc:ProgressRing IsActive="True" Width="22" Height="22"
+                               Foreground="#FF4CC2FF" Margin="0,6,0,0" />
+        </StackPanel>
+
+        <!-- Credits -->
+        <StackPanel Grid.Row="1" Margin="0,0,0,22" Spacing="3" HorizontalAlignment="Center">
+            <TextBlock HorizontalAlignment="Center" FontSize="12.5" Foreground="#FF8B95A3">
+                <Run Text="Developed by " />
+                <Run Text="Sabarish" Foreground="#FFC8D0DA" FontWeight="SemiBold" />
+            </TextBlock>
+            <TextBlock HorizontalAlignment="Center" FontSize="12.5" Foreground="#FF8B95A3">
+                <Run Text="Designed by " />
+                <Run Text="Jagan Murugaiyan" Foreground="#FFC8D0DA" FontWeight="SemiBold" />
+            </TextBlock>
+        </StackPanel>
+
+        <Grid.Resources>
+            <Storyboard x:Key="FadeIn">
+                <DoubleAnimation Storyboard.TargetName="Root" Storyboard.TargetProperty="Opacity"
+                                 From="0" To="1" Duration="0:0:0.6" />
+            </Storyboard>
+        </Grid.Resources>
+    </Grid>
+</Window>
