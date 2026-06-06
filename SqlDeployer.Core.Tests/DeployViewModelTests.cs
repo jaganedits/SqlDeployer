@@ -126,6 +126,35 @@ public class DeployViewModelTests
     }
 
     [Fact]
+    public async Task Deploy_without_force_does_not_include_already_deployed()
+    {
+        var tempDir = Directory.CreateTempSubdirectory().FullName;
+        var deployer = new FakeSqlDeployer { Pending = { Script("001") } };
+        var vm = NewVm(deployer: deployer);
+        vm.Server = "s"; vm.Database = "d"; vm.ScriptPath = tempDir;
+
+        await vm.DeployCommand.ExecuteAsync(null);
+
+        Assert.False(deployer.LastIncludeDeployed);
+        Directory.Delete(tempDir, true);
+    }
+
+    [Fact]
+    public async Task Deploy_with_force_rerun_includes_already_deployed_scripts()
+    {
+        var tempDir = Directory.CreateTempSubdirectory().FullName;
+        var deployer = new FakeSqlDeployer { Pending = { Script("001") } };
+        var vm = NewVm(deployer: deployer);
+        vm.Server = "s"; vm.Database = "d"; vm.ScriptPath = tempDir;
+        vm.ForceRerun = true;
+
+        await vm.DeployCommand.ExecuteAsync(null);
+
+        Assert.True(deployer.LastIncludeDeployed);
+        Directory.Delete(tempDir, true);
+    }
+
+    [Fact]
     public async Task Deploy_with_no_sql_files_reports_empty_folder()
     {
         var tempDir = Directory.CreateTempSubdirectory().FullName;

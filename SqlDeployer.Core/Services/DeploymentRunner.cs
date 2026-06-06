@@ -18,10 +18,11 @@ public class DeploymentRunner
         string scriptsPath,
         string environment,
         IProgress<DeploymentProgress> progress,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        bool force = false)
     {
         var pending = await _deployer.GetPendingScripts(
-            scriptsPath, environment, connectionString, cancellationToken);
+            scriptsPath, environment, connectionString, cancellationToken, includeDeployed: force);
 
         if (pending.Count == 0)
             return new DeploymentResult(0, 0, Cancelled: false, NoPendingScripts: true);

@@ -140,6 +140,16 @@
                                 IsEnabled="{Binding IsBusy}" />
                     </Grid>
 
+                    <!-- Re-run option: bypass deployment history -->
+                    <StackPanel Spacing="2">
+                        <CheckBox Content="Re-run already-deployed scripts"
+                                  IsChecked="{Binding ForceRerun, Mode=TwoWay}"
+                                  IsEnabled="{Binding IsIdle}" />
+                        <TextBlock Text="Ignores history and runs every .sql file again. Use only for scripts that are safe to re-apply."
+                                   Style="{StaticResource Subtle}" FontSize="12"
+                                   TextWrapping="Wrap" Margin="0,0,0,0" />
+                    </StackPanel>
+
                     <!-- Inline result banner: green on success, red on failure -->
                     <muxc:InfoBar IsOpen="{Binding IsResultOpen, Mode=TwoWay}"
                                   Severity="{Binding ResultKind, Converter={StaticResource Severity}}"

@@ -59,10 +59,13 @@ public class SqlServerDeployer : ISqlDeployer
         return builder.ConnectionString;
     }
 
-    public async Task<List<DeploymentScript>> GetPendingScripts(string scriptsPath, string environment, string connectionString, CancellationToken cancellationToken = default)
+    public async Task<List<DeploymentScript>> GetPendingScripts(string scriptsPath, string environment, string connectionString, CancellationToken cancellationToken = default, bool includeDeployed = false)
     {
-        var deployedScripts = await GetDeployedScripts(connectionString, cancellationToken);
-        var deployedVersions = new HashSet<string>(deployedScripts);
+        // When includeDeployed is true the deploy history is ignored, so every
+        // (non-rollback) script is re-run regardless of whether it ran before.
+        var deployedVersions = includeDeployed
+            ? new HashSet<string>()
+            : new HashSet<string>(await GetDeployedScripts(connectionString, cancellationToken));
 
         var scripts = new List<DeploymentScript>();
 
@@ -82,7 +85,7 @@ public class SqlServerDeployer : ISqlDeployer
             var version = ExtractVersion(fileName);
             var isRollback = fileName.EndsWith("_rollback", StringComparison.OrdinalIgnoreCase);
 
-            // Only include scripts that haven't been deployed yet
+            // Include scripts not yet deployed (or all of them when re-running), never rollbacks.
             if (!deployedVersions.Contains(version) && !isRollback)
             {
                 scripts.Add(new DeploymentScript(file, version, isRollback));

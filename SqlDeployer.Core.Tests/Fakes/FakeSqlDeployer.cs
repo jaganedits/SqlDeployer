@@ -13,10 +13,17 @@ public class FakeSqlDeployer : ISqlDeployer
 
     public List<ScriptStatus> ScriptStatuses { get; set; } = new();
 
+    // Records the last includeDeployed value so tests can assert the re-run flag flows through.
+    public bool? LastIncludeDeployed { get; private set; }
+
     public Task<List<DeploymentScript>> GetPendingScripts(
         string scriptsPath, string environment, string connectionString,
-        CancellationToken cancellationToken = default)
-        => Task.FromResult(new List<DeploymentScript>(Pending));
+        CancellationToken cancellationToken = default,
+        bool includeDeployed = false)
+    {
+        LastIncludeDeployed = includeDeployed;
+        return Task.FromResult(new List<DeploymentScript>(Pending));
+    }
 
     public Task<List<ScriptStatus>> GetScriptStatuses(
         string scriptsPath, string connectionString,

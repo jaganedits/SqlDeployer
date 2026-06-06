@@ -25,6 +25,9 @@ public partial class DeployViewModel : ObservableObject
     [ObservableProperty] private string _database = string.Empty;
     [ObservableProperty] private string _scriptPath = string.Empty;
 
+    // When true, the next deploy ignores deployment history and re-runs every script.
+    [ObservableProperty] private bool _forceRerun;
+
     [ObservableProperty] private string _status = "Ready";
     [ObservableProperty] private int _progressValue;
     [ObservableProperty] private int _progressMax = 1;
@@ -141,7 +144,7 @@ public partial class DeployViewModel : ObservableObject
         try
         {
             var cs = ConnectionStringFactory.Build(Server, Login, Password, Database);
-            var result = await _runner.RunAsync(cs, ScriptPath, Environment, progress, _cts.Token);
+            var result = await _runner.RunAsync(cs, ScriptPath, Environment, progress, _cts.Token, ForceRerun);
 
             if (result.NoPendingScripts)
             {
