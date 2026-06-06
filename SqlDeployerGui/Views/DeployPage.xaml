@@ -11,112 +11,203 @@
         <conv:LogKindToBrushConverter x:Key="LogBrush" />
     </Page.Resources>
 
-    <ScrollViewer Padding="24">
-        <StackPanel Spacing="16" MaxWidth="720" HorizontalAlignment="Left">
+    <Grid Padding="28,24,28,28" RowSpacing="20">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+        </Grid.RowDefinitions>
 
+        <!-- Page header -->
+        <StackPanel Grid.Row="0" Spacing="2">
             <TextBlock Text="Deploy" Style="{StaticResource TitleTextBlockStyle}" />
-            <TextBlock Text="Database migration console"
-                       Style="{StaticResource BodyTextBlockStyle}"
-                       Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+            <TextBlock Text="Run pending SQL migration scripts against a target database."
+                       Style="{StaticResource Subtle}" />
+        </StackPanel>
 
-            <Border Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
-                    BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
-                    BorderThickness="1" CornerRadius="8" Padding="20">
-                <StackPanel Spacing="12">
-                    <TextBlock Text="CONNECTION" Style="{StaticResource CaptionTextBlockStyle}"
-                               Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+        <!-- Two-pane body: controls on the left, live output filling the right -->
+        <Grid x:Name="ContentRoot" Grid.Row="1" ColumnSpacing="20" RowSpacing="20">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition x:Name="FormColumn" Width="404" />
+                <ColumnDefinition x:Name="OutputColumn" Width="*" />
+            </Grid.ColumnDefinitions>
+            <Grid.RowDefinitions>
+                <RowDefinition x:Name="FormRow" Height="*" />
+                <RowDefinition x:Name="OutputRowNarrow" Height="0" />
+            </Grid.RowDefinitions>
 
-                    <TextBox Header="Server" PlaceholderText="localhost\SQLEXPRESS"
-                             Text="{Binding Server, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
-                             IsEnabled="{Binding IsIdle}" />
-                    <TextBox Header="Login" PlaceholderText="Leave blank for Windows auth"
-                             Text="{Binding Login, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
-                             IsEnabled="{Binding IsIdle}" />
-                    <PasswordBox Header="Password" PlaceholderText="Enter password"
-                                 Password="{Binding Password, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
-                                 IsEnabled="{Binding IsIdle}" />
+            <!-- LEFT: connection form, actions, progress -->
+            <ScrollViewer x:Name="FormPane" Grid.Column="0" Grid.Row="0"
+                          VerticalScrollBarVisibility="Auto" Padding="0,0,4,0">
+                <StackPanel Spacing="16">
+
+                    <Border Style="{StaticResource Card}">
+                        <StackPanel Spacing="14">
+                            <TextBlock Text="CONNECTION" Style="{StaticResource SectionCaption}" />
+
+                            <TextBox Header="Server" PlaceholderText="localhost\SQLEXPRESS"
+                                     Text="{Binding Server, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                     IsEnabled="{Binding IsIdle}" />
+
+                            <Grid ColumnSpacing="12">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="*" />
+                                </Grid.ColumnDefinitions>
+                                <TextBox Grid.Column="0" Header="Login"
+                                         PlaceholderText="Windows auth"
+                                         Text="{Binding Login, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                         IsEnabled="{Binding IsIdle}" />
+                                <PasswordBox Grid.Column="1" Header="Password"
+                                             PlaceholderText="Password"
+                                             Password="{Binding Password, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                             IsEnabled="{Binding IsIdle}" />
+                            </Grid>
+
+                            <Grid ColumnSpacing="8">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
+                                <ComboBox Grid.Column="0" Header="Database"
+                                          PlaceholderText="Target database name"
+                                          IsEditable="True"
+                                          HorizontalAlignment="Stretch"
+                                          ItemsSource="{Binding Databases}"
+                                          Text="{Binding Database, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                          IsEnabled="{Binding IsIdle}"
+                                          DropDownOpened="DatabaseCombo_DropDownOpened" />
+                                <Button Grid.Column="1" Content="&#xE72C;" FontFamily="Segoe Fluent Icons"
+                                        VerticalAlignment="Bottom"
+                                        ToolTipService.ToolTip="Load databases from server"
+                                        Command="{Binding LoadDatabasesCommand}"
+                                        IsEnabled="{Binding IsIdle}" />
+                            </Grid>
+
+                            <Grid ColumnSpacing="8">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
+                                <TextBox Grid.Column="0" Header="Script path"
+                                         PlaceholderText="Folder with .sql migration scripts"
+                                         Text="{Binding ScriptPath, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                         IsEnabled="{Binding IsIdle}" />
+                                <Button Grid.Column="1" Content="Browse" VerticalAlignment="Bottom"
+                                        Command="{Binding BrowseCommand}" />
+                            </Grid>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- Primary actions -->
                     <Grid ColumnSpacing="8">
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="*" />
                             <ColumnDefinition Width="Auto" />
                         </Grid.ColumnDefinitions>
-                        <ComboBox Grid.Column="0" Header="Database"
-                                  PlaceholderText="Target database name"
-                                  IsEditable="True"
-                                  HorizontalAlignment="Stretch"
-                                  ItemsSource="{Binding Databases}"
-                                  Text="{Binding Database, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
-                                  IsEnabled="{Binding IsIdle}"
-                                  DropDownOpened="DatabaseCombo_DropDownOpened" />
-                        <Button Grid.Column="1" Content="&#xE72C;" FontFamily="Segoe Fluent Icons"
-                                VerticalAlignment="Bottom"
-                                ToolTipService.ToolTip="Load databases from server"
-                                Command="{Binding LoadDatabasesCommand}"
+                        <Button Grid.Column="0" Content="Test Connection"
+                                HorizontalAlignment="Stretch"
+                                Command="{Binding TestConnectionCommand}"
                                 IsEnabled="{Binding IsIdle}" />
+                        <Button Grid.Column="1" Content="Deploy"
+                                HorizontalAlignment="Stretch"
+                                Style="{StaticResource AccentButtonStyle}"
+                                Command="{Binding DeployCommand}"
+                                IsEnabled="{Binding IsIdle}" />
+                        <Button Grid.Column="2" Content="Cancel"
+                                Command="{Binding CancelCommand}"
+                                IsEnabled="{Binding IsBusy}" />
                     </Grid>
 
-                    <Grid ColumnSpacing="8">
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="*" />
-                            <ColumnDefinition Width="Auto" />
-                        </Grid.ColumnDefinitions>
-                        <TextBox Grid.Column="0" Header="Script path"
-                                 PlaceholderText="Folder with .sql migration scripts"
-                                 Text="{Binding ScriptPath, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
-                                 IsEnabled="{Binding IsIdle}" />
-                        <Button Grid.Column="1" Content="Browse" VerticalAlignment="Bottom"
-                                Command="{Binding BrowseCommand}" />
-                    </Grid>
+                    <!-- Progress + status -->
+                    <Border Style="{StaticResource Card}" Padding="16">
+                        <StackPanel Spacing="10">
+                            <muxc:ProgressBar Value="{Binding ProgressValue}"
+                                              Maximum="{Binding ProgressMax}" />
+                            <StackPanel Orientation="Horizontal" Spacing="8">
+                                <muxc:ProgressRing IsActive="{Binding IsBusy}"
+                                                   Width="16" Height="16"
+                                                   VerticalAlignment="Center" />
+                                <TextBlock Text="{Binding Status}"
+                                           VerticalAlignment="Center"
+                                           TextTrimming="CharacterEllipsis"
+                                           Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                            </StackPanel>
+                        </StackPanel>
+                    </Border>
                 </StackPanel>
+            </ScrollViewer>
+
+            <!-- RIGHT: live output, fills available height -->
+            <Border x:Name="OutputPane" Grid.Column="1" Grid.Row="0"
+                    Style="{StaticResource Card}" Padding="0">
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="*" />
+                    </Grid.RowDefinitions>
+
+                    <TextBlock Grid.Row="0" Text="OUTPUT" Style="{StaticResource SectionCaption}"
+                               Margin="20,16,20,4" />
+
+                    <muxc:Pivot Grid.Row="1" Padding="12,0,12,8">
+                        <muxc:PivotItem>
+                            <muxc:PivotItem.Header>
+                                <TextBlock Text="{x:Bind Vm.SuccessHeader, Mode=OneWay}" />
+                            </muxc:PivotItem.Header>
+                            <ListView ItemsSource="{Binding SuccessLog}" SelectionMode="None"
+                                      VerticalAlignment="Stretch">
+                                <ListView.ItemTemplate>
+                                    <DataTemplate x:DataType="models:LogEntry">
+                                        <TextBlock Text="{x:Bind Message}" FontFamily="Cascadia Mono, Consolas"
+                                                   Foreground="{Binding Kind, Converter={StaticResource LogBrush}}"
+                                                   TextWrapping="Wrap" />
+                                    </DataTemplate>
+                                </ListView.ItemTemplate>
+                            </ListView>
+                        </muxc:PivotItem>
+                        <muxc:PivotItem>
+                            <muxc:PivotItem.Header>
+                                <TextBlock Text="{x:Bind Vm.ErrorHeader, Mode=OneWay}" />
+                            </muxc:PivotItem.Header>
+                            <ListView ItemsSource="{Binding ErrorLog}" SelectionMode="None"
+                                      VerticalAlignment="Stretch">
+                                <ListView.ItemTemplate>
+                                    <DataTemplate x:DataType="models:LogEntry">
+                                        <TextBlock Text="{x:Bind Message}" FontFamily="Cascadia Mono, Consolas"
+                                                   Foreground="{Binding Kind, Converter={StaticResource LogBrush}}"
+                                                   TextWrapping="Wrap" />
+                                    </DataTemplate>
+                                </ListView.ItemTemplate>
+                            </ListView>
+                        </muxc:PivotItem>
+                    </muxc:Pivot>
+                </Grid>
             </Border>
 
-            <StackPanel Orientation="Horizontal" Spacing="8">
-                <Button Content="Test Connection" Command="{Binding TestConnectionCommand}"
-                        IsEnabled="{Binding IsIdle}" />
-                <Button Content="Deploy" Style="{StaticResource AccentButtonStyle}"
-                        Command="{Binding DeployCommand}"
-                        IsEnabled="{Binding IsIdle}" />
-                <Button Content="Cancel" Command="{Binding CancelCommand}"
-                        IsEnabled="{Binding IsBusy}" />
-            </StackPanel>
-
-            <muxc:ProgressBar Value="{Binding ProgressValue}" Maximum="{Binding ProgressMax}" />
-            <TextBlock Text="{Binding Status}"
-                       Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
-
-            <TextBlock Text="OUTPUT" Style="{StaticResource CaptionTextBlockStyle}"
-                       Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
-            <muxc:Pivot>
-                <muxc:PivotItem>
-                    <muxc:PivotItem.Header>
-                        <TextBlock Text="{x:Bind Vm.SuccessHeader, Mode=OneWay}" />
-                    </muxc:PivotItem.Header>
-                    <ListView ItemsSource="{Binding SuccessLog}" Height="160" SelectionMode="None">
-                        <ListView.ItemTemplate>
-                            <DataTemplate x:DataType="models:LogEntry">
-                                <TextBlock Text="{x:Bind Message}" FontFamily="Consolas"
-                                           Foreground="{Binding Kind, Converter={StaticResource LogBrush}}"
-                                           TextWrapping="Wrap" />
-                            </DataTemplate>
-                        </ListView.ItemTemplate>
-                    </ListView>
-                </muxc:PivotItem>
-                <muxc:PivotItem>
-                    <muxc:PivotItem.Header>
-                        <TextBlock Text="{x:Bind Vm.ErrorHeader, Mode=OneWay}" />
-                    </muxc:PivotItem.Header>
-                    <ListView ItemsSource="{Binding ErrorLog}" Height="160" SelectionMode="None">
-                        <ListView.ItemTemplate>
-                            <DataTemplate x:DataType="models:LogEntry">
-                                <TextBlock Text="{x:Bind Message}" FontFamily="Consolas"
-                                           Foreground="{Binding Kind, Converter={StaticResource LogBrush}}"
-                                           TextWrapping="Wrap" />
-                            </DataTemplate>
-                        </ListView.ItemTemplate>
-                    </ListView>
-                </muxc:PivotItem>
-            </muxc:Pivot>
-
-        </StackPanel>
-    </ScrollViewer>
+            <!-- Collapse to a single stacked column on narrow windows -->
+            <VisualStateManager.VisualStateGroups>
+                <VisualStateGroup>
+                    <VisualState x:Name="WideLayout">
+                        <VisualState.StateTriggers>
+                            <AdaptiveTrigger MinWindowWidth="900" />
+                        </VisualState.StateTriggers>
+                    </VisualState>
+                    <VisualState x:Name="NarrowLayout">
+                        <VisualState.StateTriggers>
+                            <AdaptiveTrigger MinWindowWidth="0" />
+                        </VisualState.StateTriggers>
+                        <VisualState.Setters>
+                            <Setter Target="FormColumn.Width" Value="*" />
+                            <Setter Target="OutputColumn.Width" Value="0" />
+                            <Setter Target="FormRow.Height" Value="Auto" />
+                            <Setter Target="OutputRowNarrow.Height" Value="*" />
+                            <Setter Target="OutputPane.(Grid.Column)" Value="0" />
+                            <Setter Target="OutputPane.(Grid.Row)" Value="1" />
+                        </VisualState.Setters>
+                    </VisualState>
+                </VisualStateGroup>
+            </VisualStateManager.VisualStateGroups>
+        </Grid>
+    </Grid>
 </Page>

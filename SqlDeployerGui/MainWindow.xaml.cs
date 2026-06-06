@@ -1,7 +1,10 @@
+using Microsoft.UI;
+using Microsoft.UI.Windowing;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Media;
 using SqlDeployerGui.Views;
+using Windows.Graphics;
 
 namespace SqlDeployerGui;
 
@@ -16,6 +19,11 @@ public sealed partial class MainWindow : Window
 
         ExtendsContentIntoTitleBar = true;
         SetTitleBar(AppTitleBar);
+
+        // Open at a size that gives the Deploy two-pane layout (form + live output) room to breathe.
+        var hwnd = WinRT.Interop.WindowNative.GetWindowHandle(this);
+        var windowId = Win32Interop.GetWindowIdFromWindow(hwnd);
+        AppWindow.GetFromWindowId(windowId).Resize(new SizeInt32(1320, 840));
 
         ContentFrame.Navigate(typeof(DeployPage));
     }
