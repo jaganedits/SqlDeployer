@@ -195,9 +195,12 @@
                             </Grid.RowDefinitions>
 
                             <muxc:Pivot x:Name="OutputPivot" Grid.Row="0" Padding="8,0,8,0">
+                                <muxc:Pivot.Resources>
+                                    <x:Double x:Key="PivotHeaderItemFontSize">14</x:Double>
+                                </muxc:Pivot.Resources>
                                 <muxc:PivotItem>
                                     <muxc:PivotItem.Header>
-                                        <TextBlock Text="{x:Bind Vm.SuccessHeader, Mode=OneWay}" />
+                                        <TextBlock Text="{x:Bind Vm.SuccessHeader, Mode=OneWay}" FontSize="14" />
                                     </muxc:PivotItem.Header>
                                     <ListView x:Name="SuccessList" Style="{StaticResource TerminalList}"
                                               ItemsSource="{Binding SuccessLog}">
@@ -224,7 +227,7 @@
                                 </muxc:PivotItem>
                                 <muxc:PivotItem>
                                     <muxc:PivotItem.Header>
-                                        <TextBlock Text="{x:Bind Vm.ErrorHeader, Mode=OneWay}" />
+                                        <TextBlock Text="{x:Bind Vm.ErrorHeader, Mode=OneWay}" FontSize="14" />
                                     </muxc:PivotItem.Header>
                                     <ListView x:Name="ErrorList" Style="{StaticResource TerminalList}"
                                               ItemsSource="{Binding ErrorLog}">
