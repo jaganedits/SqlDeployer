@@ -4,11 +4,31 @@
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
     xmlns:muxc="using:Microsoft.UI.Xaml.Controls"
     xmlns:conv="using:SqlDeployerGui.Converters"
-    xmlns:models="using:SqlDeployer.Models">
+    xmlns:models="using:SqlDeployer.Models"
+    xmlns:anim="using:Microsoft.UI.Xaml.Media.Animation">
 
     <Page.Resources>
         <conv:BoolNegationConverter x:Key="Not" />
         <conv:LogKindToBrushConverter x:Key="LogBrush" />
+        <conv:LogKindToSeverityConverter x:Key="Severity" />
+
+        <!-- Blinking terminal caret -->
+        <Storyboard x:Key="BlinkCaret" RepeatBehavior="Forever">
+            <DoubleAnimationUsingKeyFrames Storyboard.TargetName="Caret"
+                                           Storyboard.TargetProperty="Opacity">
+                <DiscreteDoubleKeyFrame KeyTime="0:0:0" Value="1" />
+                <DiscreteDoubleKeyFrame KeyTime="0:0:0.55" Value="0" />
+                <DiscreteDoubleKeyFrame KeyTime="0:0:1.1" Value="1" />
+            </DoubleAnimationUsingKeyFrames>
+        </Storyboard>
+
+        <!-- Terminal log list: monospace, transparent over the dark surface -->
+        <Style x:Key="TerminalList" TargetType="ListView">
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="Padding" Value="10,6" />
+            <Setter Property="SelectionMode" Value="None" />
+            <Setter Property="VerticalAlignment" Value="Stretch" />
+        </Style>
     </Page.Resources>
 
     <Grid Padding="28,24,28,28" RowSpacing="20">
@@ -35,7 +55,7 @@
                 <RowDefinition x:Name="OutputRowNarrow" Height="0" />
             </Grid.RowDefinitions>
 
-            <!-- LEFT: connection form, actions, progress -->
+            <!-- LEFT: connection form, actions, result, progress -->
             <ScrollViewer x:Name="FormPane" Grid.Column="0" Grid.Row="0"
                           VerticalScrollBarVisibility="Auto" Padding="0,0,4,0">
                 <StackPanel Spacing="16">
@@ -68,15 +88,15 @@
                                     <ColumnDefinition Width="*" />
                                     <ColumnDefinition Width="Auto" />
                                 </Grid.ColumnDefinitions>
-                                <ComboBox Grid.Column="0" Header="Database"
-                                          PlaceholderText="Target database name"
-                                          IsEditable="True"
-                                          HorizontalAlignment="Stretch"
-                                          ItemsSource="{Binding Databases}"
-                                          Text="{Binding Database, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
-                                          IsEnabled="{Binding IsIdle}"
-                                          DropDownOpened="DatabaseCombo_DropDownOpened" />
+                                <AutoSuggestBox x:Name="DatabaseBox" Grid.Column="0" Header="Database"
+                                                PlaceholderText="Target database name"
+                                                Text="{Binding Database, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                                IsEnabled="{Binding IsIdle}"
+                                                TextChanged="DatabaseBox_TextChanged"
+                                                SuggestionChosen="DatabaseBox_SuggestionChosen"
+                                                GotFocus="DatabaseBox_GotFocus" />
                                 <Button Grid.Column="1" Content="&#xE72C;" FontFamily="Segoe Fluent Icons"
+                                        Height="32" MinHeight="32" Width="40" Padding="0"
                                         VerticalAlignment="Bottom"
                                         ToolTipService.ToolTip="Load databases from server"
                                         Command="{Binding LoadDatabasesCommand}"
@@ -92,7 +112,8 @@
                                          PlaceholderText="Folder with .sql migration scripts"
                                          Text="{Binding ScriptPath, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
                                          IsEnabled="{Binding IsIdle}" />
-                                <Button Grid.Column="1" Content="Browse" VerticalAlignment="Bottom"
+                                <Button Grid.Column="1" Content="Browse" Height="32" MinHeight="32"
+                                        VerticalAlignment="Bottom"
                                         Command="{Binding BrowseCommand}" />
                             </Grid>
                         </StackPanel>
@@ -119,7 +140,13 @@
                                 IsEnabled="{Binding IsBusy}" />
                     </Grid>
 
-                    <!-- Progress + status -->
+                    <!-- Inline result banner: green on success, red on failure -->
+                    <muxc:InfoBar IsOpen="{Binding IsResultOpen, Mode=TwoWay}"
+                                  Severity="{Binding ResultKind, Converter={StaticResource Severity}}"
+                                  Message="{Binding ResultMessage}"
+                                  IsClosable="True" />
+
+                    <!-- Progress + live status -->
                     <Border Style="{StaticResource Card}" Padding="16">
                         <StackPanel Spacing="10">
                             <muxc:ProgressBar Value="{Binding ProgressValue}"
@@ -138,7 +165,7 @@
                 </StackPanel>
             </ScrollViewer>
 
-            <!-- RIGHT: live output, fills available height -->
+            <!-- RIGHT: terminal-style live output, fills available height -->
             <Border x:Name="OutputPane" Grid.Column="1" Grid.Row="0"
                     Style="{StaticResource Card}" Padding="0">
                 <Grid>
@@ -147,41 +174,104 @@
                         <RowDefinition Height="*" />
                     </Grid.RowDefinitions>
 
-                    <TextBlock Grid.Row="0" Text="OUTPUT" Style="{StaticResource SectionCaption}"
-                               Margin="20,16,20,4" />
+                    <Grid Grid.Row="0" Padding="20,16,12,8">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="Auto" />
+                        </Grid.ColumnDefinitions>
+                        <TextBlock Grid.Column="0" Text="OUTPUT" Style="{StaticResource SectionCaption}"
+                                   VerticalAlignment="Center" />
+                        <Button Grid.Column="1" Click="CopyOutput_Click"
+                                ToolTipService.ToolTip="Copy output to clipboard">
+                            <StackPanel Orientation="Horizontal" Spacing="6">
+                                <FontIcon Glyph="&#xE8C8;" FontFamily="Segoe Fluent Icons" FontSize="14" />
+                                <TextBlock Text="Copy" />
+                            </StackPanel>
+                        </Button>
+                    </Grid>
 
-                    <muxc:Pivot Grid.Row="1" Padding="12,0,12,8">
-                        <muxc:PivotItem>
-                            <muxc:PivotItem.Header>
-                                <TextBlock Text="{x:Bind Vm.SuccessHeader, Mode=OneWay}" />
-                            </muxc:PivotItem.Header>
-                            <ListView ItemsSource="{Binding SuccessLog}" SelectionMode="None"
-                                      VerticalAlignment="Stretch">
-                                <ListView.ItemTemplate>
-                                    <DataTemplate x:DataType="models:LogEntry">
-                                        <TextBlock Text="{x:Bind Message}" FontFamily="Cascadia Mono, Consolas"
-                                                   Foreground="{Binding Kind, Converter={StaticResource LogBrush}}"
-                                                   TextWrapping="Wrap" />
-                                    </DataTemplate>
-                                </ListView.ItemTemplate>
-                            </ListView>
-                        </muxc:PivotItem>
-                        <muxc:PivotItem>
-                            <muxc:PivotItem.Header>
-                                <TextBlock Text="{x:Bind Vm.ErrorHeader, Mode=OneWay}" />
-                            </muxc:PivotItem.Header>
-                            <ListView ItemsSource="{Binding ErrorLog}" SelectionMode="None"
-                                      VerticalAlignment="Stretch">
-                                <ListView.ItemTemplate>
-                                    <DataTemplate x:DataType="models:LogEntry">
-                                        <TextBlock Text="{x:Bind Message}" FontFamily="Cascadia Mono, Consolas"
-                                                   Foreground="{Binding Kind, Converter={StaticResource LogBrush}}"
-                                                   TextWrapping="Wrap" />
-                                    </DataTemplate>
-                                </ListView.ItemTemplate>
-                            </ListView>
-                        </muxc:PivotItem>
-                    </muxc:Pivot>
+                    <!-- Dark terminal surface: forced Dark theme so it always reads
+                         as a console regardless of the app's light/dark setting. -->
+                    <Border Grid.Row="1" Margin="12,0,12,12" CornerRadius="6"
+                            RequestedTheme="Dark" Background="#FF0B0F14"
+                            BorderBrush="#FF20262E" BorderThickness="1">
+                        <Grid>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="*" />
+                                <RowDefinition Height="Auto" />
+                            </Grid.RowDefinitions>
+
+                            <muxc:Pivot x:Name="OutputPivot" Grid.Row="0" Padding="8,0,8,0">
+                                <muxc:PivotItem>
+                                    <muxc:PivotItem.Header>
+                                        <TextBlock Text="{x:Bind Vm.SuccessHeader, Mode=OneWay}" />
+                                    </muxc:PivotItem.Header>
+                                    <ListView x:Name="SuccessList" Style="{StaticResource TerminalList}"
+                                              ItemsSource="{Binding SuccessLog}">
+                                        <ListView.ItemContainerTransitions>
+                                            <TransitionCollection>
+                                                <anim:AddDeleteThemeTransition />
+                                                <anim:EntranceThemeTransition FromVerticalOffset="8" />
+                                            </TransitionCollection>
+                                        </ListView.ItemContainerTransitions>
+                                        <ListView.ItemTemplate>
+                                            <DataTemplate x:DataType="models:LogEntry">
+                                                <StackPanel Orientation="Horizontal" Spacing="8">
+                                                    <TextBlock Text="&#xE73E;" FontFamily="Segoe Fluent Icons"
+                                                               FontSize="11" VerticalAlignment="Top" Margin="0,3,0,0"
+                                                               Foreground="{Binding Kind, Converter={StaticResource LogBrush}}" />
+                                                    <TextBlock Text="{x:Bind Message}" FontFamily="Cascadia Mono, Consolas"
+                                                               FontSize="13"
+                                                               Foreground="{Binding Kind, Converter={StaticResource LogBrush}}"
+                                                               TextWrapping="Wrap" IsTextSelectionEnabled="True" />
+                                                </StackPanel>
+                                            </DataTemplate>
+                                        </ListView.ItemTemplate>
+                                    </ListView>
+                                </muxc:PivotItem>
+                                <muxc:PivotItem>
+                                    <muxc:PivotItem.Header>
+                                        <TextBlock Text="{x:Bind Vm.ErrorHeader, Mode=OneWay}" />
+                                    </muxc:PivotItem.Header>
+                                    <ListView x:Name="ErrorList" Style="{StaticResource TerminalList}"
+                                              ItemsSource="{Binding ErrorLog}">
+                                        <ListView.ItemContainerTransitions>
+                                            <TransitionCollection>
+                                                <anim:AddDeleteThemeTransition />
+                                                <anim:EntranceThemeTransition FromVerticalOffset="8" />
+                                            </TransitionCollection>
+                                        </ListView.ItemContainerTransitions>
+                                        <ListView.ItemTemplate>
+                                            <DataTemplate x:DataType="models:LogEntry">
+                                                <StackPanel Orientation="Horizontal" Spacing="8">
+                                                    <TextBlock Text="&#xEB90;" FontFamily="Segoe Fluent Icons"
+                                                               FontSize="11" VerticalAlignment="Top" Margin="0,3,0,0"
+                                                               Foreground="{Binding Kind, Converter={StaticResource LogBrush}}" />
+                                                    <TextBlock Text="{x:Bind Message}" FontFamily="Cascadia Mono, Consolas"
+                                                               FontSize="13"
+                                                               Foreground="{Binding Kind, Converter={StaticResource LogBrush}}"
+                                                               TextWrapping="Wrap" IsTextSelectionEnabled="True" />
+                                                </StackPanel>
+                                            </DataTemplate>
+                                        </ListView.ItemTemplate>
+                                    </ListView>
+                                </muxc:PivotItem>
+                            </muxc:Pivot>
+
+                            <!-- Terminal prompt line with a blinking caret -->
+                            <Border Grid.Row="1" Background="#FF0E141B" Padding="16,8"
+                                    BorderBrush="#FF20262E" BorderThickness="0,1,0,0">
+                                <StackPanel Orientation="Horizontal" Spacing="6">
+                                    <TextBlock Text="&#x276F;" FontFamily="Cascadia Mono, Consolas" FontSize="13"
+                                               Foreground="#FF4CC2FF" />
+                                    <TextBlock Text="ready" FontFamily="Cascadia Mono, Consolas" FontSize="13"
+                                               Foreground="#FF5A6472" />
+                                    <TextBlock x:Name="Caret" Text="&#x2588;" FontFamily="Cascadia Mono, Consolas"
+                                               FontSize="13" Foreground="#FFC8D0DA" />
+                                </StackPanel>
+                            </Border>
+                        </Grid>
+                    </Border>
                 </Grid>
             </Border>
 

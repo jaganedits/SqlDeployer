@@ -29,6 +29,12 @@ public partial class DeployViewModel : ObservableObject
     [ObservableProperty] private int _progressValue;
     [ObservableProperty] private int _progressMax = 1;
 
+    // Inline result banner shown after Test/Deploy (green on success, red on failure)
+    // instead of an interrupting popup dialog.
+    [ObservableProperty] private bool _isResultOpen;
+    [ObservableProperty] private string _resultMessage = string.Empty;
+    [ObservableProperty] private LogKind _resultKind = LogKind.Info;
+
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(IsIdle))]
     private bool _isBusy;
@@ -81,6 +87,7 @@ public partial class DeployViewModel : ObservableObject
             return;
         }
 
+        IsResultOpen = false;
         IsBusy = true;
         Status = "Testing connection...";
         try
@@ -89,12 +96,12 @@ public partial class DeployViewModel : ObservableObject
             await using var conn = new SqlConnection(cs);
             await conn.OpenAsync();
             Status = "Connection succeeded";
-            await _dialogs.ShowMessageAsync("Connection", "Database connection successful.");
+            ShowResult("Connection successful — the database is reachable.", LogKind.Success);
         }
         catch (Exception ex)
         {
             Status = "Connection failed";
-            await _dialogs.ShowMessageAsync("Connection error", ex.Message);
+            ShowResult($"Connection failed: {ex.Message}", LogKind.Error);
         }
         finally
         {
@@ -122,6 +129,7 @@ public partial class DeployViewModel : ObservableObject
         SuccessLog.Clear();
         ErrorLog.Clear();
         ProgressValue = 0;
+        IsResultOpen = false;
         IsBusy = true;
         _cts = new CancellationTokenSource();
         Status = "Loading pending scripts...";
@@ -138,18 +146,19 @@ public partial class DeployViewModel : ObservableObject
             if (result.NoPendingScripts)
             {
                 Status = "No pending scripts.";
-                await _dialogs.ShowMessageAsync("Deployment", "No new pending scripts found to deploy.");
+                ShowResult("No new pending scripts found to deploy.", LogKind.Info);
             }
             else if (result.Cancelled)
             {
                 Status = "Deployment cancelled.";
+                ShowResult("Deployment cancelled.", LogKind.Info);
             }
             else
             {
                 Status = $"Finished: {result.SucceededCount} succeeded, {result.FailedCount} failed.";
-                await _dialogs.ShowMessageAsync(
-                    result.FailedCount > 0 ? "Completed with errors" : "Deployment complete",
-                    $"Succeeded: {result.SucceededCount}\nFailed: {result.FailedCount}");
+                ShowResult(
+                    $"Deployment complete — {result.SucceededCount} succeeded, {result.FailedCount} failed.",
+                    result.FailedCount > 0 ? LogKind.Error : LogKind.Success);
             }
 
             PersistConnection();
@@ -157,7 +166,7 @@ public partial class DeployViewModel : ObservableObject
         catch (Exception ex)
         {
             Status = "Deployment failed.";
-            await _dialogs.ShowMessageAsync("Error", ex.Message);
+            ShowResult($"Deployment failed: {ex.Message}", LogKind.Error);
         }
         finally
         {
@@ -221,6 +230,13 @@ public partial class DeployViewModel : ObservableObject
             SuccessLog.Add(new LogEntry($"{p.FileName} :: Processed successfully", LogKind.Success));
         else
             ErrorLog.Add(new LogEntry($"{p.FileName} :: {p.Error}", LogKind.Error));
+    }
+
+    private void ShowResult(string message, LogKind kind)
+    {
+        ResultMessage = message;
+        ResultKind = kind;
+        IsResultOpen = true;
     }
 
     private void PersistConnection()
