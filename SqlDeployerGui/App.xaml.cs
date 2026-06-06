@@ -26,15 +26,13 @@ public partial class App : Application
     protected override void OnLaunched(LaunchActivatedEventArgs args)
     {
         _splash = new SplashWindow();
-
-        // Build the app only once the splash logo has drawn, so it doesn't appear
-        // blank while MainWindow is constructed on the UI thread.
-        _splash.ContentReady += BuildAppBehindSplash;
         _splash.Activate();
 
-        // Fallback: never wait indefinitely if the logo fails to report ready.
+        // Build after the splash has fully drawn (logo decoded + intro animation),
+        // so the ~500ms UI-thread construction doesn't freeze the splash mid-fade
+        // and delay the logo from appearing.
         _startTimer = _splash.DispatcherQueue.CreateTimer();
-        _startTimer.Interval = TimeSpan.FromSeconds(1.5);
+        _startTimer.Interval = TimeSpan.FromMilliseconds(700);
         _startTimer.IsRepeating = false;
         _startTimer.Tick += (timer, _) => { timer.Stop(); BuildAppBehindSplash(); };
         _startTimer.Start();

@@ -3,6 +3,7 @@ using Microsoft.UI.Windowing;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Media;
+using Microsoft.UI.Xaml.Media.Imaging;
 using SqlDeployerGui.Views;
 using Windows.Graphics;
 using Windows.UI;
@@ -29,6 +30,10 @@ public sealed partial class MainWindow : Window
 
         // App icon for the title bar / taskbar / Alt-Tab.
         _appWindow.SetIcon(Path.Combine(AppContext.BaseDirectory, "Assets", "app.ico"));
+
+        // Logo shown inside the custom title bar (the system icon isn't drawn there).
+        TitleLogo.Source = new BitmapImage(
+            new Uri(Path.Combine(AppContext.BaseDirectory, "Assets", "logo.png")));
 
         // Open at a size that gives the Deploy two-pane layout (form + live output) room to breathe.
         _appWindow.Resize(new SizeInt32(1320, 840));

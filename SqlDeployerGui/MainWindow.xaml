@@ -13,8 +13,7 @@
         <Grid x:Name="AppTitleBar" Grid.Row="0" Height="44">
             <StackPanel Orientation="Horizontal" Spacing="10"
                         VerticalAlignment="Center" Margin="16,0,0,0">
-                <Rectangle Width="4" Height="16" RadiusX="2" RadiusY="2"
-                           Fill="{ThemeResource AccentFillColorDefaultBrush}" />
+                <Image x:Name="TitleLogo" Width="22" Height="22" VerticalAlignment="Center" />
                 <TextBlock Text="SQL Deploy" FontWeight="SemiBold"
                            VerticalAlignment="Center"
                            Style="{StaticResource CaptionTextBlockStyle}" />

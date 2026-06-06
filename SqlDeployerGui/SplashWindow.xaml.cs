@@ -2,7 +2,6 @@ using System;
 using System.IO;
 using System.Runtime.InteropServices;
 using Microsoft.UI;
-using Microsoft.UI.Dispatching;
 using Microsoft.UI.Windowing;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Media.Animation;
@@ -43,11 +42,6 @@ public sealed partial class SplashWindow : Window
 
     private readonly IntPtr _hwnd;
 
-    // Raised (once) after the logo image has loaded, so the host can begin its
-    // heavier UI-thread work without leaving the logo blank.
-    public event Action? ContentReady;
-    private bool _readyFired;
-
     public SplashWindow()
     {
         InitializeComponent();
@@ -81,11 +75,8 @@ public sealed partial class SplashWindow : Window
 
         // Load the logo, and signal readiness once it's decoded so the host can
         // start building the main window only after the splash is fully drawn.
-        var bitmap = new BitmapImage();
-        bitmap.ImageOpened += (_, _) => FireReady();
-        bitmap.ImageFailed += (_, _) => FireReady();
-        bitmap.UriSource = new Uri(Path.Combine(AppContext.BaseDirectory, "Assets", "logo.png"));
-        LogoImage.Source = bitmap;
+        LogoImage.Source = new BitmapImage(
+            new Uri(Path.Combine(AppContext.BaseDirectory, "Assets", "logo.png")));
 
         Root.Loaded += OnRootLoaded;
     }
@@ -110,13 +101,5 @@ public sealed partial class SplashWindow : Window
 
         if (Root.Resources.TryGetValue("FadeIn", out var resource) && resource is Storyboard fadeIn)
             fadeIn.Begin();
-    }
-
-    private void FireReady()
-    {
-        if (_readyFired) return;
-        _readyFired = true;
-        // Let the decoded image paint one frame before the host blocks the thread.
-        DispatcherQueue.TryEnqueue(DispatcherQueuePriority.Low, () => ContentReady?.Invoke());
     }
 }
