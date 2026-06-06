@@ -146,7 +146,7 @@ public partial class DeployViewModel : ObservableObject
             if (result.NoPendingScripts)
             {
                 Status = "No pending scripts.";
-                ShowResult("No new pending scripts found to deploy.", LogKind.Info);
+                await LogScanSummary(cs);
             }
             else if (result.Cancelled)
             {
@@ -237,6 +237,45 @@ public partial class DeployViewModel : ObservableObject
         ResultMessage = message;
         ResultKind = kind;
         IsResultOpen = true;
+    }
+
+    // When a deploy finds nothing to run, list every .sql file in the folder and
+    // why it was skipped — so "no pending scripts" is explained rather than mysterious.
+    private async Task LogScanSummary(string connectionString)
+    {
+        List<ScriptStatus> statuses;
+        try
+        {
+            statuses = await _deployer.GetScriptStatuses(ScriptPath, connectionString);
+        }
+        catch (Exception ex)
+        {
+            ShowResult($"Could not scan the scripts folder: {ex.Message}", LogKind.Error);
+            return;
+        }
+
+        if (statuses.Count == 0)
+        {
+            SuccessLog.Add(new LogEntry($"No .sql files found in: {ScriptPath}", LogKind.Info));
+            ShowResult(
+                "No .sql files were found in the selected folder. Check the Script path — only top-level *.sql files are scanned (subfolders are ignored).",
+                LogKind.Info);
+            return;
+        }
+
+        foreach (var s in statuses)
+        {
+            var reason = s.IsRollback ? "rollback script — skipped"
+                : s.AlreadyDeployed ? $"already deployed (version {s.Version}) — skipped"
+                : "pending";
+            SuccessLog.Add(new LogEntry($"{s.FileName} :: {reason}", LogKind.Info));
+        }
+
+        var deployed = statuses.Count(s => s.AlreadyDeployed && !s.IsRollback);
+        ShowResult(
+            $"No pending scripts. Found {statuses.Count} file(s); {deployed} already deployed. " +
+            "Each version is applied only once — add a new versioned script (or remove its DeploymentHistory row) to deploy again.",
+            LogKind.Info);
     }
 
     private void PersistConnection()

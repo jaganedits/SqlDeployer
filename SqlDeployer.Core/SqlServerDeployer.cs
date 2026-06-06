@@ -7,6 +7,9 @@ namespace SqlDeployer;
 public record DeploymentScript(string FileName, string Version, bool IsRollback);
 public record DeploymentHistory(string ScriptName, string Version, DateTime DeployedAt, bool Success, string? ErrorMessage = null);
 
+// One row per *.sql file found in the scripts folder, with why it will or won't run.
+public record ScriptStatus(string FileName, string Version, bool IsRollback, bool AlreadyDeployed);
+
 public class SqlServerDeployer : ISqlDeployer
 {
     private readonly string _configPath;
@@ -87,6 +90,28 @@ public class SqlServerDeployer : ISqlDeployer
         }
 
         return scripts;
+    }
+
+    // Diagnostic scan: every *.sql file in the folder with its computed version,
+    // whether it's a rollback, and whether that version was already deployed. Lets
+    // the UI explain why a deploy found "no pending scripts".
+    public async Task<List<ScriptStatus>> GetScriptStatuses(string scriptsPath, string connectionString, CancellationToken cancellationToken = default)
+    {
+        if (!Directory.Exists(scriptsPath))
+            throw new DirectoryNotFoundException($"Scripts directory not found: {scriptsPath}");
+
+        var deployedVersions = new HashSet<string>(await GetDeployedScripts(connectionString, cancellationToken));
+
+        return Directory.GetFiles(scriptsPath, "*.sql")
+            .OrderBy(f => VersionSortKey(ExtractVersion(Path.GetFileNameWithoutExtension(f))), StringComparer.Ordinal)
+            .Select(f =>
+            {
+                var name = Path.GetFileNameWithoutExtension(f);
+                var version = ExtractVersion(name);
+                var isRollback = name.EndsWith("_rollback", StringComparison.OrdinalIgnoreCase);
+                return new ScriptStatus(Path.GetFileName(f), version, isRollback, deployedVersions.Contains(version));
+            })
+            .ToList();
     }
 
     public async Task ExecuteScript(string connectionString, string scriptPath, string version, string environment, CancellationToken cancellationToken = default)

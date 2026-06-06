@@ -100,6 +100,49 @@ public class DeployViewModelTests
     }
 
     [Fact]
+    public async Task Deploy_with_no_pending_logs_each_script_and_why_it_was_skipped()
+    {
+        var tempDir = Directory.CreateTempSubdirectory().FullName;
+        var deployer = new FakeSqlDeployer
+        {
+            Pending = { }, // nothing pending -> NoPendingScripts
+            ScriptStatuses =
+            {
+                new ScriptStatus("001_init.sql", "001", IsRollback: false, AlreadyDeployed: true),
+                new ScriptStatus("002_rollback.sql", "002", IsRollback: true, AlreadyDeployed: false)
+            }
+        };
+        var vm = NewVm(deployer: deployer);
+        vm.Server = "s"; vm.Database = "d"; vm.ScriptPath = tempDir;
+
+        await vm.DeployCommand.ExecuteAsync(null);
+
+        Assert.Equal(2, vm.SuccessLog.Count);
+        Assert.Contains(vm.SuccessLog, e => e.Message.Contains("already deployed"));
+        Assert.Contains(vm.SuccessLog, e => e.Message.Contains("rollback"));
+        Assert.True(vm.IsResultOpen);
+
+        Directory.Delete(tempDir, true);
+    }
+
+    [Fact]
+    public async Task Deploy_with_no_sql_files_reports_empty_folder()
+    {
+        var tempDir = Directory.CreateTempSubdirectory().FullName;
+        var deployer = new FakeSqlDeployer { Pending = { }, ScriptStatuses = { } };
+        var vm = NewVm(deployer: deployer);
+        vm.Server = "s"; vm.Database = "d"; vm.ScriptPath = tempDir;
+
+        await vm.DeployCommand.ExecuteAsync(null);
+
+        Assert.Single(vm.SuccessLog);
+        Assert.Contains("No .sql files", vm.SuccessLog[0].Message);
+        Assert.True(vm.IsResultOpen);
+
+        Directory.Delete(tempDir, true);
+    }
+
+    [Fact]
     public async Task TestConnection_with_missing_fields_shows_dialog()
     {
         var dialogs = new FakeDialogService();

@@ -264,8 +264,8 @@
                                 <StackPanel Orientation="Horizontal" Spacing="6">
                                     <TextBlock Text="&#x276F;" FontFamily="Cascadia Mono, Consolas" FontSize="13"
                                                Foreground="#FF4CC2FF" />
-                                    <TextBlock Text="ready" FontFamily="Cascadia Mono, Consolas" FontSize="13"
-                                               Foreground="#FF5A6472" />
+                                    <TextBlock Text="{Binding Status}" FontFamily="Cascadia Mono, Consolas" FontSize="13"
+                                               Foreground="#FF8B95A3" TextTrimming="CharacterEllipsis" />
                                     <TextBlock x:Name="Caret" Text="&#x2588;" FontFamily="Cascadia Mono, Consolas"
                                                FontSize="13" Foreground="#FFC8D0DA" />
                                 </StackPanel>

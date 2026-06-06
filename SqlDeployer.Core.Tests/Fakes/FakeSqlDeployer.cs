@@ -11,10 +11,17 @@ public class FakeSqlDeployer : ISqlDeployer
     public Func<string, Task>? OnExecute { get; set; }
     public List<DeploymentHistory> History { get; set; } = new();
 
+    public List<ScriptStatus> ScriptStatuses { get; set; } = new();
+
     public Task<List<DeploymentScript>> GetPendingScripts(
         string scriptsPath, string environment, string connectionString,
         CancellationToken cancellationToken = default)
         => Task.FromResult(new List<DeploymentScript>(Pending));
+
+    public Task<List<ScriptStatus>> GetScriptStatuses(
+        string scriptsPath, string connectionString,
+        CancellationToken cancellationToken = default)
+        => Task.FromResult(new List<ScriptStatus>(ScriptStatuses));
 
     public async Task ExecuteScript(
         string connectionString, string scriptPath, string version, string environment,

@@ -6,6 +6,10 @@ public interface ISqlDeployer
         string scriptsPath, string environment, string connectionString,
         CancellationToken cancellationToken = default);
 
+    Task<List<ScriptStatus>> GetScriptStatuses(
+        string scriptsPath, string connectionString,
+        CancellationToken cancellationToken = default);
+
     Task ExecuteScript(
         string connectionString, string scriptPath, string version, string environment,
         CancellationToken cancellationToken = default);
