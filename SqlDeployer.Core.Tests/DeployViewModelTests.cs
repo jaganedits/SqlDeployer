@@ -80,6 +80,29 @@ public class DeployViewModelTests
     }
 
     [Fact]
+    public async Task Successful_deploy_saves_encrypted_password_and_a_new_vm_restores_it()
+    {
+        var tempDir = Directory.CreateTempSubdirectory().FullName;
+        var settingsPath = Path.Combine(Path.GetTempPath(), "sqldeploy_vm_" + Guid.NewGuid().ToString("N") + ".json");
+        var deployer = new FakeSqlDeployer { Pending = { Script("001") } };
+        var vm = NewVm(deployer: deployer, settings: new SettingsService(settingsPath));
+        vm.Server = "localhost"; vm.Login = "sa"; vm.Password = "secret"; vm.Database = "AppDb"; vm.ScriptPath = tempDir;
+
+        await vm.DeployCommand.ExecuteAsync(null);
+
+        // The plaintext password must not be written to disk.
+        Assert.DoesNotContain("secret", File.ReadAllText(settingsPath));
+
+        // A fresh VM loads the saved (encrypted) credential and restores the password and server list.
+        var reloaded = NewVm(settings: new SettingsService(settingsPath));
+        Assert.Equal("secret", reloaded.Password);
+        Assert.Contains("localhost", reloaded.SavedServers);
+
+        Directory.Delete(tempDir, true);
+        File.Delete(settingsPath);
+    }
+
+    [Fact]
     public async Task Failing_script_goes_to_error_log()
     {
         var tempDir = Directory.CreateTempSubdirectory().FullName;

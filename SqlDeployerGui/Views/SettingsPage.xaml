@@ -23,7 +23,7 @@
             <Border Style="{StaticResource Card}">
                 <StackPanel Spacing="10">
                     <TextBlock Text="SAVED CONNECTION" Style="{StaticResource SectionCaption}" />
-                    <TextBlock Text="Connection details — except the password — are remembered between sessions. Passwords are never saved to disk."
+                    <TextBlock Text="Connection details are remembered per server. After a successful Test Connection, the password is saved too — encrypted with Windows DPAPI, so only your Windows account can read it. Pick a saved server on the Deploy page to refill its credentials."
                                Style="{StaticResource Subtle}"
                                TextWrapping="Wrap" />
                 </StackPanel>

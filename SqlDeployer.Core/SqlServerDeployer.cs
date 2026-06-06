@@ -288,6 +288,20 @@ public class SqlServerDeployer : ISqlDeployer
         return history;
     }
 
+    // Deletes all deployment history rows. After this, every script is treated as
+    // pending again on the next deploy.
+    public async Task ClearHistory(string connectionString)
+    {
+        using var connection = new SqlConnection(connectionString);
+        await connection.OpenAsync();
+
+        using var command = connection.CreateCommand();
+        command.CommandText = @"
+            IF OBJECT_ID('dbo.DeploymentHistory', 'U') IS NOT NULL
+                DELETE FROM dbo.DeploymentHistory";
+        await command.ExecuteNonQueryAsync();
+    }
+
     private async Task CreateDeploymentTrackingTable(SqlConnection connection, CancellationToken cancellationToken = default)
     {
         using var createTableCommand = connection.CreateCommand();

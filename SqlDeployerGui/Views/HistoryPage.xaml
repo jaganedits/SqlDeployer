@@ -21,13 +21,21 @@
                 <TextBlock Text="History" Style="{StaticResource TitleTextBlockStyle}" />
                 <TextBlock Text="{Binding Status}" Style="{StaticResource Subtle}" />
             </StackPanel>
-            <Button Grid.Column="1" VerticalAlignment="Center"
-                    Command="{Binding RefreshCommand}">
-                <StackPanel Orientation="Horizontal" Spacing="8">
-                    <FontIcon Glyph="&#xE72C;" FontFamily="Segoe Fluent Icons" FontSize="14" />
-                    <TextBlock Text="Refresh" />
-                </StackPanel>
-            </Button>
+            <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                <Button Command="{Binding RefreshCommand}">
+                    <StackPanel Orientation="Horizontal" Spacing="8">
+                        <FontIcon Glyph="&#xE72C;" FontFamily="Segoe Fluent Icons" FontSize="14" />
+                        <TextBlock Text="Refresh" />
+                    </StackPanel>
+                </Button>
+                <Button x:Name="ClearButton" Click="ClearButton_Click"
+                        ToolTipService.ToolTip="Delete all deployment history">
+                    <StackPanel Orientation="Horizontal" Spacing="8">
+                        <FontIcon Glyph="&#xE74D;" FontFamily="Segoe Fluent Icons" FontSize="14" />
+                        <TextBlock Text="Clear" />
+                    </StackPanel>
+                </Button>
+            </StackPanel>
         </Grid>
 
         <!-- Records table inside a card surface -->

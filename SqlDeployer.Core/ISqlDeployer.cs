@@ -17,5 +17,7 @@ public interface ISqlDeployer
 
     Task<List<DeploymentHistory>> GetDeploymentHistory(string connectionString);
 
+    Task ClearHistory(string connectionString);
+
     Task<List<string>> GetDatabases(string connectionString);
 }

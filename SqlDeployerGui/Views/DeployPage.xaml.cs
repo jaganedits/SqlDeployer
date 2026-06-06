@@ -53,6 +53,39 @@ public sealed partial class DeployPage : Page
             DispatcherQueue.TryEnqueue(() => list.ScrollIntoView(items[^1]));
     }
 
+    // --- Server autocomplete: pick a saved server to refill its credentials ---
+
+    private void ServerBox_GotFocus(object sender, RoutedEventArgs e)
+        => ServerBox.ItemsSource = FilterServers(ServerBox.Text);
+
+    private void ServerBox_TextChanged(AutoSuggestBox sender, AutoSuggestBoxTextChangedEventArgs args)
+    {
+        if (args.Reason == AutoSuggestionBoxTextChangeReason.UserInput)
+            sender.ItemsSource = FilterServers(sender.Text);
+    }
+
+    private void ServerBox_SuggestionChosen(AutoSuggestBox sender, AutoSuggestBoxSuggestionChosenEventArgs args)
+    {
+        if (args.SelectedItem is string server)
+        {
+            sender.Text = server;
+            Vm.ApplyServerProfile(server);
+        }
+    }
+
+    private void ServerBox_QuerySubmitted(AutoSuggestBox sender, AutoSuggestBoxQuerySubmittedEventArgs args)
+        => Vm.ApplyServerProfile((args.ChosenSuggestion as string) ?? sender.Text);
+
+    private List<string> FilterServers(string? query)
+    {
+        if (string.IsNullOrWhiteSpace(query))
+            return Vm.SavedServers.ToList();
+
+        return Vm.SavedServers
+            .Where(s => s.Contains(query, StringComparison.OrdinalIgnoreCase))
+            .ToList();
+    }
+
     // --- Database autocomplete (AutoSuggestBox over the loaded database list) ---
 
     private async void DatabaseBox_GotFocus(object sender, RoutedEventArgs e)

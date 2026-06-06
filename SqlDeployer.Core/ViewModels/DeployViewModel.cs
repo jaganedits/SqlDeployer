@@ -48,6 +48,9 @@ public partial class DeployViewModel : ObservableObject
     public ObservableCollection<LogEntry> ErrorLog { get; } = new();
     public ObservableCollection<string> Databases { get; } = new();
 
+    // Servers from previously-saved connections, for the Server autocomplete.
+    public ObservableCollection<string> SavedServers { get; } = new();
+
     // Tab header labels with live counts (e.g. "Success (3)"), mirroring the
     // original WinForms "Success Log(n)" / "Error Log(n)" segmented tabs.
     public string SuccessHeader => $"Success ({SuccessLog.Count})";
@@ -63,15 +66,34 @@ public partial class DeployViewModel : ObservableObject
         SuccessLog.CollectionChanged += (_, _) => OnPropertyChanged(nameof(SuccessHeader));
         ErrorLog.CollectionChanged += (_, _) => OnPropertyChanged(nameof(ErrorHeader));
 
-        var saved = _settings.Load().LastConnection;
+        var loaded = _settings.Load();
+        foreach (var c in loaded.SavedConnections)
+            if (!SavedServers.Contains(c.Server)) SavedServers.Add(c.Server);
+
+        var saved = loaded.LastConnection;
         if (saved is not null)
         {
             Server = saved.Server;
             Login = saved.Login;
             Database = saved.Database;
             ScriptPath = saved.ScriptPath;
-            // Password is intentionally never restored.
+            Password = CredentialProtector.Unprotect(saved.Secret);
         }
+    }
+
+    // Refill the credential fields from a previously-saved server, if known.
+    public void ApplyServerProfile(string server)
+    {
+        if (string.IsNullOrWhiteSpace(server)) return;
+
+        var profile = _settings.Load().SavedConnections
+            .FirstOrDefault(c => string.Equals(c.Server, server, StringComparison.OrdinalIgnoreCase));
+        if (profile is null) return;
+
+        Login = profile.Login;
+        Database = profile.Database;
+        ScriptPath = profile.ScriptPath;
+        Password = CredentialProtector.Unprotect(profile.Secret);
     }
 
     [RelayCommand]
@@ -99,7 +121,8 @@ public partial class DeployViewModel : ObservableObject
             await using var conn = new SqlConnection(cs);
             await conn.OpenAsync();
             Status = "Connection succeeded";
-            ShowResult("Connection successful — the database is reachable.", LogKind.Success);
+            SaveCredential();
+            ShowResult("Connection successful — credentials saved for this server.", LogKind.Success);
         }
         catch (Exception ex)
         {
@@ -164,7 +187,7 @@ public partial class DeployViewModel : ObservableObject
                     result.FailedCount > 0 ? LogKind.Error : LogKind.Success);
             }
 
-            PersistConnection();
+            SaveCredential();
         }
         catch (Exception ex)
         {
@@ -281,17 +304,29 @@ public partial class DeployViewModel : ObservableObject
             LogKind.Info);
     }
 
-    private void PersistConnection()
+    // Saves the current connection (with the password DPAPI-encrypted) as the
+    // last-used profile and upserts it into the per-server saved list.
+    private void SaveCredential()
     {
-        var settings = _settings.Load();
-        settings.LastConnection = new ConnectionProfile
+        if (string.IsNullOrWhiteSpace(Server)) return;
+
+        var profile = new ConnectionProfile
         {
             Server = Server,
             Login = Login,
             Database = Database,
-            ScriptPath = ScriptPath
+            ScriptPath = ScriptPath,
+            Secret = CredentialProtector.Protect(Password)
         };
+
+        var settings = _settings.Load();
+        settings.LastConnection = profile;
+        settings.SavedConnections.RemoveAll(c =>
+            string.Equals(c.Server, Server, StringComparison.OrdinalIgnoreCase));
+        settings.SavedConnections.Add(profile);
         _settings.Save(settings);
+
+        if (!SavedServers.Contains(Server)) SavedServers.Add(Server);
     }
 
     // Synchronous IProgress so the UI/log updates happen inline on the calling

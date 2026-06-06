@@ -43,4 +43,30 @@ public partial class HistoryViewModel : ObservableObject
             IsBusy = false;
         }
     }
+
+    [RelayCommand]
+    private async Task Clear()
+    {
+        if (string.IsNullOrWhiteSpace(ConnectionString))
+        {
+            Status = "Set a connection on the Deploy page first.";
+            return;
+        }
+
+        IsBusy = true;
+        try
+        {
+            await _deployer.ClearHistory(ConnectionString);
+            Items.Clear();
+            Status = "Deployment history cleared.";
+        }
+        catch (Exception ex)
+        {
+            Status = ex.Message;
+        }
+        finally
+        {
+            IsBusy = false;
+        }
+    }
 }

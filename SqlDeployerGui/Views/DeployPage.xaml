@@ -64,9 +64,14 @@
                         <StackPanel Spacing="14">
                             <TextBlock Text="CONNECTION" Style="{StaticResource SectionCaption}" />
 
-                            <TextBox Header="Server" PlaceholderText="localhost\SQLEXPRESS"
-                                     Text="{Binding Server, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
-                                     IsEnabled="{Binding IsIdle}" />
+                            <AutoSuggestBox x:Name="ServerBox" Header="Server"
+                                            PlaceholderText="localhost\SQLEXPRESS"
+                                            Text="{Binding Server, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                            IsEnabled="{Binding IsIdle}"
+                                            TextChanged="ServerBox_TextChanged"
+                                            SuggestionChosen="ServerBox_SuggestionChosen"
+                                            QuerySubmitted="ServerBox_QuerySubmitted"
+                                            GotFocus="ServerBox_GotFocus" />
 
                             <Grid ColumnSpacing="12">
                                 <Grid.ColumnDefinitions>

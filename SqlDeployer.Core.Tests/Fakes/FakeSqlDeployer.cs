@@ -44,6 +44,12 @@ public class FakeSqlDeployer : ISqlDeployer
     public Task<List<DeploymentHistory>> GetDeploymentHistory(string connectionString)
         => Task.FromResult(new List<DeploymentHistory>(History));
 
+    public Task ClearHistory(string connectionString)
+    {
+        History.Clear();
+        return Task.CompletedTask;
+    }
+
     public List<string> Databases { get; set; } = new();
     public Exception? GetDatabasesError { get; set; }
 
