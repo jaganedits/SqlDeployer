@@ -27,6 +27,9 @@ public sealed partial class MainWindow : Window
         var windowId = Win32Interop.GetWindowIdFromWindow(hwnd);
         _appWindow = AppWindow.GetFromWindowId(windowId);
 
+        // App icon for the title bar / taskbar / Alt-Tab.
+        _appWindow.SetIcon(Path.Combine(AppContext.BaseDirectory, "Assets", "app.ico"));
+
         // Open at a size that gives the Deploy two-pane layout (form + live output) room to breathe.
         _appWindow.Resize(new SizeInt32(1320, 840));
 
