@@ -3,3 +3,8 @@ obj/
 .vs/
 *.user
 publish/
+
+# Tooling / editor / brainstorm artifacts
+.superpowers/
+.codegraph/
+.idea/
