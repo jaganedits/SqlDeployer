@@ -31,7 +31,7 @@
         </Style>
     </Page.Resources>
 
-    <Grid Padding="28,24,28,28" RowSpacing="20">
+    <Grid Padding="{StaticResource PagePadding}" RowSpacing="20">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto" />
             <RowDefinition Height="*" />
@@ -58,10 +58,10 @@
             <!-- LEFT: connection form, actions, result, progress -->
             <ScrollViewer x:Name="FormPane" Grid.Column="0" Grid.Row="0"
                           VerticalScrollBarVisibility="Auto" Padding="0,0,4,0">
-                <StackPanel Spacing="16">
+                <StackPanel Spacing="{StaticResource StackSpacingM}">
 
                     <Border Style="{StaticResource Card}">
-                        <StackPanel Spacing="14">
+                        <StackPanel Spacing="{StaticResource StackSpacingS}">
                             <TextBlock Text="CONNECTION" Style="{StaticResource SectionCaption}" />
 
                             <AutoSuggestBox x:Name="ServerBox" Header="Server"
@@ -208,8 +208,8 @@
                     <!-- Dark terminal surface: forced Dark theme so it always reads
                          as a console regardless of the app's light/dark setting. -->
                     <Border Grid.Row="1" Margin="12,0,12,12" CornerRadius="6"
-                            RequestedTheme="Dark" Background="#FF0B0F14"
-                            BorderBrush="#FF20262E" BorderThickness="1">
+                            Background="{ThemeResource ConsoleBackgroundBrush}"
+                            BorderBrush="{ThemeResource ConsoleBorderBrush}" BorderThickness="1">
                         <Grid>
                             <Grid.RowDefinitions>
                                 <RowDefinition Height="*" />
@@ -277,15 +277,15 @@
                             </muxc:Pivot>
 
                             <!-- Terminal prompt line with a blinking caret -->
-                            <Border Grid.Row="1" Background="#FF0E141B" Padding="16,8"
-                                    BorderBrush="#FF20262E" BorderThickness="0,1,0,0">
+                            <Border Grid.Row="1" Background="{ThemeResource ConsolePromptBackgroundBrush}" Padding="16,8"
+                                    BorderBrush="{ThemeResource ConsoleBorderBrush}" BorderThickness="0,1,0,0">
                                 <StackPanel Orientation="Horizontal" Spacing="6">
                                     <TextBlock Text="&#x276F;" FontFamily="Cascadia Mono, Consolas" FontSize="13"
-                                               Foreground="#FF4CC2FF" />
+                                               Foreground="{ThemeResource ConsolePromptArrowBrush}" />
                                     <TextBlock Text="{Binding Status}" FontFamily="Cascadia Mono, Consolas" FontSize="13"
-                                               Foreground="#FF8B95A3" TextTrimming="CharacterEllipsis" />
+                                               Foreground="{ThemeResource ConsoleStatusBrush}" TextTrimming="CharacterEllipsis" />
                                     <TextBlock x:Name="Caret" Text="&#x2588;" FontFamily="Cascadia Mono, Consolas"
-                                               FontSize="13" Foreground="#FFC8D0DA" />
+                                               FontSize="13" Foreground="{ThemeResource ConsoleCaretBrush}" />
                                 </StackPanel>
                             </Border>
                         </Grid>
