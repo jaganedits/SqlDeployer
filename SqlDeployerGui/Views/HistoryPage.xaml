@@ -5,7 +5,7 @@
     xmlns:muxc="using:Microsoft.UI.Xaml.Controls"
     xmlns:sql="using:SqlDeployer">
 
-    <Grid Padding="28,24,28,28" RowSpacing="16">
+    <Grid Padding="{StaticResource PagePadding}" RowSpacing="16">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto" />
             <RowDefinition Height="*" />
