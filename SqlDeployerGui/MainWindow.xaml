@@ -4,7 +4,7 @@
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
     xmlns:muxc="using:Microsoft.UI.Xaml.Controls">
 
-    <Grid>
+    <Grid Background="Transparent">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto" />
             <RowDefinition Height="*" />
@@ -24,6 +24,7 @@
         </Grid>
 
         <muxc:NavigationView x:Name="Nav" Grid.Row="1"
+                             Background="Transparent"
                              IsBackButtonVisible="Collapsed"
                              IsSettingsVisible="False"
                              SelectionChanged="Nav_SelectionChanged"
