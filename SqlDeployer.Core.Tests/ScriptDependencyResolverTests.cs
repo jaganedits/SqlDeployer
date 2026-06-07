@@ -63,4 +63,11 @@ public class ScriptDependencyResolverTests
         var sql = "CREATE TABLE A ( note VARCHAR(50) DEFAULT 'see REFERENCES B for detail' );";
         Assert.Empty(ScriptDependencyResolver.ReferencedTables(sql));
     }
+
+    [Fact]
+    public void Ignores_block_comment_syntax_inside_string_literal()
+    {
+        var sql = "SELECT '/* not a comment */ text' FROM t -- REFERENCES ignored";
+        Assert.Empty(ScriptDependencyResolver.ReferencedTables(sql));
+    }
 }

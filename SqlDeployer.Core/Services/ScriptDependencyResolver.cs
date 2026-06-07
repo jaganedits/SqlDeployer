@@ -57,9 +57,11 @@ public static class ScriptDependencyResolver
     // table names inside them can't create false matches.
     public static string StripNoise(string sql)
     {
+        // Strip in quoting-precedence order: string literals are outermost (comment
+        // markers inside a string are literal text), then block, then line comments.
+        sql = StringLiteral.Replace(sql, " '' ");
         sql = BlockComment.Replace(sql, " ");
         sql = LineComment.Replace(sql, " ");
-        sql = StringLiteral.Replace(sql, " '' ");
         return sql;
     }
 
