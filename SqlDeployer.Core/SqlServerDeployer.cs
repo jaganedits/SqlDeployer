@@ -122,26 +122,26 @@ public class SqlServerDeployer : ISqlDeployer
         return pending;
     }
 
-    // Diagnostic scan: every *.sql file in the folder with its computed version,
-    // whether it's a rollback, and whether that version was already deployed. Lets
-    // the UI explain why a deploy found "no pending scripts".
+    // Diagnostic scan: every *.sql file under the folder (recursively), in deploy
+    // order, with whether it's a rollback and whether its relative-path identity was
+    // already deployed. Lets the UI explain why a deploy found "no pending scripts".
     public async Task<List<ScriptStatus>> GetScriptStatuses(string scriptsPath, string connectionString, CancellationToken cancellationToken = default)
     {
-        if (!Directory.Exists(scriptsPath))
-            throw new DirectoryNotFoundException($"Scripts directory not found: {scriptsPath}");
+        var deployed = new HashSet<string>(
+            await GetDeployedScripts(connectionString, cancellationToken),
+            StringComparer.OrdinalIgnoreCase);
 
-        var deployedVersions = new HashSet<string>(await GetDeployedScripts(connectionString, cancellationToken));
+        var nodes = DiscoverScripts(scriptsPath); // recursive; throws if folder missing
+        var plan = ScriptDependencyResolver.Resolve(nodes);
 
-        return Directory.GetFiles(scriptsPath, "*.sql")
-            .OrderBy(f => VersionSortKey(ExtractVersion(Path.GetFileNameWithoutExtension(f))), StringComparer.Ordinal)
-            .Select(f =>
-            {
-                var name = Path.GetFileNameWithoutExtension(f);
-                var version = ExtractVersion(name);
-                var isRollback = name.EndsWith("_rollback", StringComparison.OrdinalIgnoreCase);
-                return new ScriptStatus(Path.GetFileName(f), version, isRollback, deployedVersions.Contains(version));
-            })
-            .ToList();
+        return plan.Order.Select(n =>
+        {
+            var isRollback = Path.GetFileNameWithoutExtension(n.Id)
+                .EndsWith("_rollback", StringComparison.OrdinalIgnoreCase);
+            // FileName and Version both carry the relative-path identity so the
+            // diagnostic matches the deploy's run order and dedup key.
+            return new ScriptStatus(n.Id, n.Id, isRollback, deployed.Contains(n.Id));
+        }).ToList();
     }
 
     public async Task ExecuteScript(string connectionString, string scriptPath, string version, string environment, CancellationToken cancellationToken = default)
@@ -389,26 +389,7 @@ public class SqlServerDeployer : ISqlDeployer
         return config;
     }
 
-    private string ExtractVersion(string fileName)
-    {
-        // Version is the run of leading numeric, underscore-separated segments.
-        //   001_script_name        -> "001"
-        //   20240101_001_add_table -> "20240101_001"
-        var parts = fileName.Split('_');
-        var versionParts = parts.TakeWhile(p => p.Length > 0 && p.All(char.IsDigit)).ToList();
 
-        // Fall back to the first segment if nothing numeric leads (preserves old behaviour).
-        return versionParts.Count > 0 ? string.Join('_', versionParts) : parts[0];
-    }
-
-    // Builds an ordinally-comparable key where each numeric segment is left-padded,
-    // so "2" sorts before "10" and "20240101_2" before "20240101_10".
-    private static string VersionSortKey(string version)
-    {
-        return string.Join('_', version
-            .Split('_')
-            .Select(seg => seg.All(char.IsDigit) ? seg.PadLeft(19, '0') : seg));
-    }
 }
 
 public class DeploymentConfig
