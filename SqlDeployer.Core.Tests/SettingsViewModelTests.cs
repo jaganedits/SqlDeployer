@@ -38,4 +38,35 @@ public class SettingsViewModelTests
         Assert.Equal("Light", raised);
         File.Delete(path);
     }
+
+    [Fact]
+    public void Changing_accent_preset_persists_and_raises_event()
+    {
+        var path = TempPath();
+        var vm = new SettingsViewModel(new SettingsService(path));
+        SqlDeployer.Theming.AccentSelection? raised = null;
+        vm.AccentChanged += (_, sel) => raised = sel;
+
+        vm.SelectedAccentPreset = "Indigo";
+
+        Assert.Equal("Indigo", new SettingsService(path).Load().AccentPreset);
+        Assert.NotNull(raised);
+        Assert.Equal("Indigo", raised!.Preset);
+        File.Delete(path);
+    }
+
+    [Fact]
+    public void Toggling_follow_system_persists_and_raises_event()
+    {
+        var path = TempPath();
+        var vm = new SettingsViewModel(new SettingsService(path));
+        SqlDeployer.Theming.AccentSelection? raised = null;
+        vm.AccentChanged += (_, sel) => raised = sel;
+
+        vm.FollowSystemAccent = true;
+
+        Assert.True(new SettingsService(path).Load().FollowSystemAccent);
+        Assert.True(raised!.FollowSystem);
+        File.Delete(path);
+    }
 }
