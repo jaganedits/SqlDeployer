@@ -145,6 +145,15 @@
                                 IsEnabled="{Binding IsBusy}" />
                     </Grid>
 
+                    <!-- Live progress: bar + percentage -->
+                    <StackPanel Spacing="6">
+                        <ProgressBar Minimum="0"
+                                     Maximum="{Binding ProgressMax}"
+                                     Value="{Binding ProgressValue}" />
+                        <TextBlock Text="{Binding ProgressText}"
+                                   Style="{StaticResource Subtle}" FontSize="12" />
+                    </StackPanel>
+
                     <!-- Re-run option: bypass deployment history -->
                     <StackPanel Spacing="2">
                         <CheckBox Content="Re-run already-deployed scripts"
@@ -153,6 +162,12 @@
                         <TextBlock Text="Ignores history and runs every .sql file again. Use only for scripts that are safe to re-apply."
                                    Style="{StaticResource Subtle}" FontSize="12"
                                    TextWrapping="Wrap" Margin="0,0,0,0" />
+                        <CheckBox Content="Auto-order scripts by foreign keys"
+                                  IsChecked="{Binding AutoOrderByDependencies, Mode=TwoWay}"
+                                  IsEnabled="{Binding IsIdle}" Margin="0,8,0,0" />
+                        <TextBlock Text="Detects parent/child table dependencies and runs parents first. Turn off to run in folder + name order only."
+                                   Style="{StaticResource Subtle}" FontSize="12"
+                                   TextWrapping="Wrap" />
                     </StackPanel>
 
                     <!-- Inline result banner: green on success, red on failure -->
