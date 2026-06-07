@@ -32,13 +32,17 @@ public class SqlServerDeployer : ISqlDeployer
     }
 
     // Leading integer of the first path segment ("1.Table" -> 1). Unnumbered
-    // folders/files sort last (int.MaxValue).
+    // folders/files — and numeric prefixes too large to be a real phase — sort
+    // last (int.MaxValue). Parsing via long avoids overflowing on long digit
+    // runs (e.g. timestamp-style names like "20240101120000_seed.sql").
     public static int PhaseOf(string relativePath)
     {
         var first = relativePath.Split(
             Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar)[0];
         var digits = new string(first.TakeWhile(char.IsDigit).ToArray());
-        return digits.Length > 0 ? int.Parse(digits) : int.MaxValue;
+        return long.TryParse(digits, out var phase) && phase <= int.MaxValue
+            ? (int)phase
+            : int.MaxValue;
     }
 
     // Recursively find every *.sql under rootPath and build a ScriptNode for each:
@@ -62,6 +66,28 @@ public class SqlServerDeployer : ISqlDeployer
     // script and is never auto-deployed.
     private static bool IsRollbackScript(string id) =>
         Path.GetFileNameWithoutExtension(id).EndsWith("_rollback", StringComparison.OrdinalIgnoreCase);
+
+    // Leaf filenames that occur exactly once across the discovered scripts. Used to
+    // safely match a legacy history row (see IsAlreadyDeployed) without confusing two
+    // like-named scripts that live in different folders.
+    public static HashSet<string> UnambiguousLeaves(IEnumerable<ScriptNode> nodes) =>
+        nodes.GroupBy(n => Path.GetFileName(n.Id), StringComparer.OrdinalIgnoreCase)
+             .Where(g => g.Count() == 1)
+             .Select(g => g.Key)
+             .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+    // True when a discovered script counts as already deployed. The current identity
+    // is the relative path; we also match a legacy bare-filename record (history
+    // written before identities became relative paths stored only the leaf name) — but
+    // only when that leaf is unambiguous, so relocating a top-level script into a phase
+    // folder doesn't re-run it, while two like-named scripts stay independent.
+    public static bool IsAlreadyDeployed(
+        string id, ISet<string> deployed, ISet<string> unambiguousLeaves)
+    {
+        if (deployed.Contains(id)) return true;
+        var leaf = Path.GetFileName(id);
+        return unambiguousLeaves.Contains(leaf) && deployed.Contains(leaf);
+    }
 
     public string? GetConnectionString(string environment)
     {
@@ -115,11 +141,12 @@ public class SqlServerDeployer : ISqlDeployer
                 "Foreign-key cycle detected among: " + string.Join(", ", plan.Cycle) +
                 ". Break the cycle (e.g. move one FK into an ALTER script).");
 
+        var leaves = UnambiguousLeaves(plan.Order);
         var pending = new List<DeploymentScript>();
         foreach (var n in plan.Order)
         {
             if (IsRollbackScript(n.Id)) continue;
-            if (deployed.Contains(n.Id)) continue;
+            if (IsAlreadyDeployed(n.Id, deployed, leaves)) continue;
 
             var fullPath = Path.Combine(scriptsPath, n.Id);
             pending.Add(new DeploymentScript(fullPath, n.Id, IsRollback: false));
@@ -141,8 +168,10 @@ public class SqlServerDeployer : ISqlDeployer
 
         // FileName and Version both carry the relative-path identity so the
         // diagnostic matches the deploy's run order and dedup key.
+        var leaves = UnambiguousLeaves(plan.Order);
         return plan.Order
-            .Select(n => new ScriptStatus(n.Id, n.Id, IsRollbackScript(n.Id), deployed.Contains(n.Id)))
+            .Select(n => new ScriptStatus(
+                n.Id, n.Id, IsRollbackScript(n.Id), IsAlreadyDeployed(n.Id, deployed, leaves)))
             .ToList();
     }
 
@@ -342,16 +371,32 @@ public class SqlServerDeployer : ISqlDeployer
                 CREATE TABLE dbo.DeploymentHistory (
                     Id INT IDENTITY(1,1) PRIMARY KEY,
                     ScriptName NVARCHAR(500) NOT NULL,
-                    Version NVARCHAR(50) NOT NULL,
+                    Version NVARCHAR(255) NOT NULL,
                     DeployedAt DATETIME2 NOT NULL DEFAULT GETUTCDATE(),
                     Environment NVARCHAR(50) NOT NULL,
                     Success BIT NOT NULL,
                     ErrorMessage NVARCHAR(MAX),
                     DeployedBy NVARCHAR(255)
                 )
-                
+
                 CREATE INDEX IX_ScriptName ON dbo.DeploymentHistory(ScriptName)
                 CREATE INDEX IX_Environment ON dbo.DeploymentHistory(Environment)
+            END
+            ELSE
+            BEGIN
+                -- Widen identity/display columns on databases created before scripts
+                -- were identified by relative path: ScriptName now holds the relative
+                -- path and Version the leaf filename, both of which can exceed the
+                -- original NVARCHAR(50)/(255). max_length is in bytes (NVARCHAR(n)=2n).
+                IF EXISTS (SELECT 1 FROM sys.columns
+                           WHERE object_id = OBJECT_ID('dbo.DeploymentHistory')
+                             AND name = 'Version' AND max_length <> -1 AND max_length < 510)
+                    ALTER TABLE dbo.DeploymentHistory ALTER COLUMN Version NVARCHAR(255) NOT NULL
+
+                IF EXISTS (SELECT 1 FROM sys.columns
+                           WHERE object_id = OBJECT_ID('dbo.DeploymentHistory')
+                             AND name = 'ScriptName' AND max_length <> -1 AND max_length < 1000)
+                    ALTER TABLE dbo.DeploymentHistory ALTER COLUMN ScriptName NVARCHAR(500) NOT NULL
             END
         ";
 

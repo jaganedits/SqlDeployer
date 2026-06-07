@@ -16,6 +16,67 @@ public class ScriptDiscoveryTests
     }
 
     [Fact]
+    public void PhaseOf_does_not_overflow_on_long_digit_runs()
+    {
+        // A 14-digit timestamp prefix exceeds int.MaxValue; it must not throw, and
+        // such an oversized "phase" sorts last alongside unnumbered scripts.
+        Assert.Equal(int.MaxValue, SqlServerDeployer.PhaseOf("20240101120000_seed.sql"));
+        Assert.Equal(int.MaxValue, SqlServerDeployer.PhaseOf(Path.Combine("99999999999.Hotfix", "x.sql")));
+
+        // A leading number that still fits in int is parsed normally (digits stop at '_').
+        Assert.Equal(20240101, SqlServerDeployer.PhaseOf("20240101_001_add.sql"));
+    }
+
+    [Fact]
+    public void UnambiguousLeaves_keeps_only_filenames_that_occur_once()
+    {
+        var nodes = new[]
+        {
+            new ScriptNode(Path.Combine("1.Table", "Users.sql"), 1, ""),
+            new ScriptNode(Path.Combine("2.Alter", "Users.sql"), 2, ""),
+            new ScriptNode(Path.Combine("1.Table", "Orders.sql"), 1, ""),
+        };
+
+        var leaves = SqlServerDeployer.UnambiguousLeaves(nodes);
+
+        Assert.Contains("Orders.sql", leaves);
+        Assert.DoesNotContain("Users.sql", leaves); // appears twice -> ambiguous
+    }
+
+    [Fact]
+    public void IsAlreadyDeployed_matches_relative_path_identity()
+    {
+        var deployed = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+            { Path.Combine("1.Table", "Users.sql") };
+        var leaves = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "Users.sql" };
+
+        Assert.True(SqlServerDeployer.IsAlreadyDeployed(Path.Combine("1.Table", "Users.sql"), deployed, leaves));
+        Assert.False(SqlServerDeployer.IsAlreadyDeployed(Path.Combine("2.Alter", "Users.sql"), deployed, leaves));
+    }
+
+    [Fact]
+    public void IsAlreadyDeployed_matches_legacy_bare_filename_when_leaf_is_unambiguous()
+    {
+        // Legacy history stored the top-level filename; the script has since moved
+        // into a phase folder. It must still be recognized as already deployed.
+        var deployed = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "Users.sql" };
+        var leaves = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "Users.sql" };
+
+        Assert.True(SqlServerDeployer.IsAlreadyDeployed(Path.Combine("1.Table", "Users.sql"), deployed, leaves));
+    }
+
+    [Fact]
+    public void IsAlreadyDeployed_ignores_legacy_match_when_leaf_is_ambiguous()
+    {
+        // Two scripts share a filename, so a bare-filename legacy row can't be
+        // attributed to one of them; re-running (returning false) is the safe choice.
+        var deployed = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "Users.sql" };
+        var leaves = new HashSet<string>(StringComparer.OrdinalIgnoreCase); // "Users.sql" excluded
+
+        Assert.False(SqlServerDeployer.IsAlreadyDeployed(Path.Combine("1.Table", "Users.sql"), deployed, leaves));
+    }
+
+    [Fact]
     public void DiscoverScripts_recurses_and_assigns_phase_and_relative_id()
     {
         var root = Directory.CreateTempSubdirectory().FullName;
