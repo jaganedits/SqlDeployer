@@ -73,7 +73,7 @@ public class ScriptDependencyResolverTests
 
     // ---- Task 3: Resolve tests ----
 
-    private static ScriptNode Node(string id, int phase, string sql) => new(id, phase, id, sql);
+    private static ScriptNode Node(string id, int phase, string sql) => new(id, phase, sql);
 
     [Fact]
     public void Orders_parent_before_child_regardless_of_name()

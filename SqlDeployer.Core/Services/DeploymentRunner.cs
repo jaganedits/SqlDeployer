@@ -1,4 +1,3 @@
-using System.IO;
 using SqlDeployer.Models;
 
 namespace SqlDeployer.Services;
@@ -37,9 +36,7 @@ public class DeploymentRunner
                 return new DeploymentResult(success, failed, Cancelled: true, NoPendingScripts: false);
 
             var script = pending[i];
-            var displayName = string.IsNullOrEmpty(script.RelativePath)
-                ? Path.GetFileName(script.FileName)
-                : script.RelativePath;
+            var displayName = script.Version; // relative-path identity, phase-qualified
 
             progress.Report(new DeploymentProgress(i + 1, pending.Count, displayName));
 

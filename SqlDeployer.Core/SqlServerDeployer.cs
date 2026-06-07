@@ -5,8 +5,9 @@ using SqlDeployer.Services;
 
 namespace SqlDeployer;
 
-// FileName = absolute path (read/execute). Version = relative-path identity (history dedup key). RelativePath = same identity, used for phase-qualified display.
-public record DeploymentScript(string FileName, string Version, bool IsRollback, string RelativePath = "");
+// FileName = absolute path (read/execute). Version = relative-path identity:
+// the history dedup key and the phase-qualified display name.
+public record DeploymentScript(string FileName, string Version, bool IsRollback);
 public record DeploymentHistory(string ScriptName, string Version, DateTime DeployedAt, bool Success, string? ErrorMessage = null);
 
 // One row per *.sql file found in the scripts folder, with why it will or won't run.
@@ -41,8 +42,8 @@ public class SqlServerDeployer : ISqlDeployer
     }
 
     // Recursively find every *.sql under rootPath and build a ScriptNode for each:
-    // Id = path relative to root (stable identity), Phase from the first folder,
-    // NameKey = relative path (tertiary sort), Sql = file content.
+    // Id = path relative to root (stable identity, also the name sort key),
+    // Phase from the first folder, Sql = file content.
     public static IReadOnlyList<ScriptNode> DiscoverScripts(string rootPath)
     {
         if (!Directory.Exists(rootPath))
@@ -52,10 +53,15 @@ public class SqlServerDeployer : ISqlDeployer
         foreach (var file in Directory.GetFiles(rootPath, "*.sql", SearchOption.AllDirectories))
         {
             var relative = Path.GetRelativePath(rootPath, file);
-            nodes.Add(new ScriptNode(relative, PhaseOf(relative), relative, File.ReadAllText(file)));
+            nodes.Add(new ScriptNode(relative, PhaseOf(relative), File.ReadAllText(file)));
         }
         return nodes;
     }
+
+    // A script whose file name (sans extension) ends with "_rollback" is a rollback
+    // script and is never auto-deployed.
+    private static bool IsRollbackScript(string id) =>
+        Path.GetFileNameWithoutExtension(id).EndsWith("_rollback", StringComparison.OrdinalIgnoreCase);
 
     public string? GetConnectionString(string environment)
     {
@@ -112,13 +118,11 @@ public class SqlServerDeployer : ISqlDeployer
         var pending = new List<DeploymentScript>();
         foreach (var n in plan.Order)
         {
-            var isRollback = Path.GetFileNameWithoutExtension(n.Id)
-                .EndsWith("_rollback", StringComparison.OrdinalIgnoreCase);
-            if (isRollback) continue;
+            if (IsRollbackScript(n.Id)) continue;
             if (deployed.Contains(n.Id)) continue;
 
             var fullPath = Path.Combine(scriptsPath, n.Id);
-            pending.Add(new DeploymentScript(fullPath, n.Id, isRollback, n.Id));
+            pending.Add(new DeploymentScript(fullPath, n.Id, IsRollback: false));
         }
         return pending;
     }
@@ -135,14 +139,11 @@ public class SqlServerDeployer : ISqlDeployer
         var nodes = DiscoverScripts(scriptsPath); // recursive; throws if folder missing
         var plan = ScriptDependencyResolver.Resolve(nodes);
 
-        return plan.Order.Select(n =>
-        {
-            var isRollback = Path.GetFileNameWithoutExtension(n.Id)
-                .EndsWith("_rollback", StringComparison.OrdinalIgnoreCase);
-            // FileName and Version both carry the relative-path identity so the
-            // diagnostic matches the deploy's run order and dedup key.
-            return new ScriptStatus(n.Id, n.Id, isRollback, deployed.Contains(n.Id));
-        }).ToList();
+        // FileName and Version both carry the relative-path identity so the
+        // diagnostic matches the deploy's run order and dedup key.
+        return plan.Order
+            .Select(n => new ScriptStatus(n.Id, n.Id, IsRollbackScript(n.Id), deployed.Contains(n.Id)))
+            .ToList();
     }
 
     public async Task ExecuteScript(string connectionString, string scriptPath, string version, string environment, CancellationToken cancellationToken = default)

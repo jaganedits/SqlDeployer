@@ -2,10 +2,10 @@ using System.Text.RegularExpressions;
 
 namespace SqlDeployer.Services;
 
-// A script to be ordered. Id is the stable identity (relative path);
-// Phase is the numeric folder prefix (int.MaxValue when unnumbered);
-// NameKey is the tertiary sort; Sql is the file content.
-public sealed record ScriptNode(string Id, int Phase, string NameKey, string Sql);
+// A script to be ordered. Id is the stable identity (relative path) and doubles
+// as the tertiary (name) sort key; Phase is the numeric folder prefix
+// (int.MaxValue when unnumbered); Sql is the file content.
+public sealed record ScriptNode(string Id, int Phase, string Sql);
 
 // A detected "parent table must be created before child" relationship.
 public sealed record DependencyEdge(string ParentId, string ChildId, string Table);
@@ -83,11 +83,11 @@ public static class ScriptDependencyResolver
     {
         var baseOrder = nodes
             .OrderBy(n => n.Phase)
-            .ThenBy(n => n.NameKey, StringComparer.OrdinalIgnoreCase)
+            .ThenBy(n => n.Id, StringComparer.OrdinalIgnoreCase)
             .ToList();
 
         if (!autoOrder)
-            return new OrderedPlan(baseOrder, new List<DependencyEdge>(), new List<string>());
+            return new OrderedPlan(baseOrder, [], []);
 
         // table -> first node that creates it
         var provider = new Dictionary<string, ScriptNode>();
