@@ -24,13 +24,17 @@ public static class ScriptDependencyResolver
     // stripped, schema defaulted to dbo. So [dbo].[X], dbo.X and X all unify.
     public static string NormalizeTableName(string raw)
     {
+        if (string.IsNullOrWhiteSpace(raw))
+            throw new ArgumentException("Table name must not be empty.", nameof(raw));
+
         var cleaned = raw.Replace("[", "").Replace("]", "").Replace("\"", "").Trim();
         var parts = cleaned.Split('.',
             StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
 
-        string schema, table;
-        if (parts.Length >= 2) { schema = parts[0]; table = parts[1]; }
-        else { schema = "dbo"; table = parts.Length == 1 ? parts[0] : cleaned; }
+        // Qualified names use the LAST two segments: [db.]schema.table -> schema.table.
+        // The table is always the final segment; the schema the one before it.
+        var schema = parts.Length >= 2 ? parts[^2] : "dbo";
+        var table = parts.Length >= 1 ? parts[^1] : cleaned;
 
         return (schema + "." + table).ToLowerInvariant();
     }
