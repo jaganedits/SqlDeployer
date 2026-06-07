@@ -76,4 +76,73 @@ public static class ScriptDependencyResolver
             .Select(m => NormalizeTableName(m.Groups[1].Value))
             .Distinct()
             .ToList();
+
+    // Order scripts: phase ascending (absolute), then a topological FK sort within
+    // each phase (parent before child), then stable name order among independents.
+    public static OrderedPlan Resolve(IEnumerable<ScriptNode> nodes, bool autoOrder = true)
+    {
+        var baseOrder = nodes
+            .OrderBy(n => n.Phase)
+            .ThenBy(n => n.NameKey, StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
+        if (!autoOrder)
+            return new OrderedPlan(baseOrder, new List<DependencyEdge>(), new List<string>());
+
+        // table -> first node that creates it
+        var provider = new Dictionary<string, ScriptNode>();
+        foreach (var n in baseOrder)
+            foreach (var t in CreatedTables(n.Sql))
+                provider.TryAdd(t, n);
+
+        // parent -> child edges, only when both ends are in the same phase
+        var edges = new List<DependencyEdge>();
+        foreach (var child in baseOrder)
+            foreach (var t in ReferencedTables(child.Sql))
+                if (provider.TryGetValue(t, out var parent)
+                    && !ReferenceEquals(parent, child)
+                    && parent.Phase == child.Phase)
+                    edges.Add(new DependencyEdge(parent.Id, child.Id, t));
+
+        var ordered = new List<ScriptNode>();
+        var cycle = new List<string>();
+
+        foreach (var group in baseOrder.GroupBy(n => n.Phase).OrderBy(g => g.Key))
+        {
+            var groupNodes = group.ToList(); // already in baseOrder within the group
+            var ids = groupNodes.Select(n => n.Id).ToHashSet();
+            var indegree = groupNodes.ToDictionary(n => n.Id, _ => 0);
+            var childrenOf = groupNodes.ToDictionary(n => n.Id, _ => new List<string>());
+
+            foreach (var e in edges)
+                if (ids.Contains(e.ParentId) && ids.Contains(e.ChildId))
+                {
+                    indegree[e.ChildId]++;
+                    childrenOf[e.ParentId].Add(e.ChildId);
+                }
+
+            var emitted = new HashSet<string>();
+            bool progressed = true;
+            while (emitted.Count < groupNodes.Count && progressed)
+            {
+                progressed = false;
+                foreach (var n in groupNodes) // scan in baseOrder; emit earliest ready
+                {
+                    if (emitted.Contains(n.Id) || indegree[n.Id] != 0) continue;
+                    ordered.Add(n);
+                    emitted.Add(n.Id);
+                    foreach (var c in childrenOf[n.Id]) indegree[c]--;
+                    progressed = true;
+                    break; // restart scan to keep baseOrder priority among ready nodes
+                }
+            }
+
+            cycle.AddRange(groupNodes.Where(n => !emitted.Contains(n.Id)).Select(n => n.Id));
+        }
+
+        // On a cycle, return a safe phase+name order and report the offenders.
+        return cycle.Count > 0
+            ? new OrderedPlan(baseOrder, edges, cycle)
+            : new OrderedPlan(ordered, edges, cycle);
+    }
 }
