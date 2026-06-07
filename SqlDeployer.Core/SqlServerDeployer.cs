@@ -5,6 +5,7 @@ using SqlDeployer.Services;
 
 namespace SqlDeployer;
 
+// FileName = absolute path (read/execute). Version = relative-path identity (history dedup key). RelativePath = same identity, used for phase-qualified display.
 public record DeploymentScript(string FileName, string Version, bool IsRollback, string RelativePath = "");
 public record DeploymentHistory(string ScriptName, string Version, DateTime DeployedAt, bool Success, string? ErrorMessage = null);
 
@@ -339,7 +340,7 @@ public class SqlServerDeployer : ISqlDeployer
             BEGIN
                 CREATE TABLE dbo.DeploymentHistory (
                     Id INT IDENTITY(1,1) PRIMARY KEY,
-                    ScriptName NVARCHAR(255) NOT NULL,
+                    ScriptName NVARCHAR(500) NOT NULL,
                     Version NVARCHAR(50) NOT NULL,
                     DeployedAt DATETIME2 NOT NULL DEFAULT GETUTCDATE(),
                     Environment NVARCHAR(50) NOT NULL,
@@ -348,7 +349,7 @@ public class SqlServerDeployer : ISqlDeployer
                     DeployedBy NVARCHAR(255)
                 )
                 
-                CREATE INDEX IX_Version ON dbo.DeploymentHistory(Version)
+                CREATE INDEX IX_ScriptName ON dbo.DeploymentHistory(ScriptName)
                 CREATE INDEX IX_Environment ON dbo.DeploymentHistory(Environment)
             END
         ";

@@ -303,7 +303,7 @@ public partial class DeployViewModel : ObservableObject
         {
             SuccessLog.Add(new LogEntry($"No .sql files found in: {ScriptPath}", LogKind.Info));
             ShowResult(
-                "No .sql files were found in the selected folder. Check the Script path — only top-level *.sql files are scanned (subfolders are ignored).",
+                "No .sql files were found in the selected folder or its subfolders. Check the Script path.",
                 LogKind.Info);
             return;
         }
@@ -311,7 +311,7 @@ public partial class DeployViewModel : ObservableObject
         foreach (var s in statuses)
         {
             var reason = s.IsRollback ? "rollback script — skipped"
-                : s.AlreadyDeployed ? $"already deployed (version {s.Version}) — skipped"
+                : s.AlreadyDeployed ? "already deployed — skipped"
                 : "pending";
             SuccessLog.Add(new LogEntry($"{s.FileName} :: {reason}", LogKind.Info));
         }
@@ -319,7 +319,7 @@ public partial class DeployViewModel : ObservableObject
         var deployed = statuses.Count(s => s.AlreadyDeployed && !s.IsRollback);
         ShowResult(
             $"No pending scripts. Found {statuses.Count} file(s); {deployed} already deployed. " +
-            "Each version is applied only once — add a new versioned script (or remove its DeploymentHistory row) to deploy again.",
+            "Each script is applied only once — add a new versioned script (or remove its DeploymentHistory row) to deploy again.",
             LogKind.Info);
     }
 
@@ -355,19 +355,21 @@ public partial class DeployViewModel : ObservableObject
         _settings.Save(s);
     }
 
-    // Logs the computed run order (and detected parent->child links) before running,
-    // so the auto-ordering is visible rather than a black box. Best-effort.
+    // Logs the computed run order (and detected parent->child links when auto-ordering)
+    // before running, so the order is visible rather than a black box. Best-effort.
     private void LogPlanPreview()
     {
-        if (!AutoOrderByDependencies) return;
         try
         {
             var nodes = SqlServerDeployer.DiscoverScripts(ScriptPath);
             var plan = ScriptDependencyResolver.Resolve(nodes, AutoOrderByDependencies);
             if (plan.Order.Count == 0) return; // nothing to deploy; skip the preview noise
-            SuccessLog.Add(new LogEntry($"Plan: {plan.Order.Count} script(s), dependency-ordered.", LogKind.Info));
-            foreach (var e in plan.Edges)
-                SuccessLog.Add(new LogEntry($"  {e.ChildId} depends on {e.ParentId} (table {e.Table})", LogKind.Info));
+
+            var ordering = AutoOrderByDependencies ? "dependency-ordered" : "folder + name order";
+            SuccessLog.Add(new LogEntry($"Plan: {plan.Order.Count} script(s), {ordering}.", LogKind.Info));
+            if (AutoOrderByDependencies)
+                foreach (var e in plan.Edges)
+                    SuccessLog.Add(new LogEntry($"  {e.ChildId} depends on {e.ParentId} (table {e.Table})", LogKind.Info));
         }
         catch
         {
