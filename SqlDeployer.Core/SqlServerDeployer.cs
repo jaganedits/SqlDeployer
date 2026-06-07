@@ -1,6 +1,7 @@
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using Microsoft.Data.SqlClient;
+using SqlDeployer.Services;
 
 namespace SqlDeployer;
 
@@ -26,6 +27,33 @@ public class SqlServerDeployer : ISqlDeployer
     {
         _configPath = configPath;
         _config = LoadConfiguration(configPath);
+    }
+
+    // Leading integer of the first path segment ("1.Table" -> 1). Unnumbered
+    // folders/files sort last (int.MaxValue).
+    public static int PhaseOf(string relativePath)
+    {
+        var first = relativePath.Split(
+            Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar)[0];
+        var digits = new string(first.TakeWhile(char.IsDigit).ToArray());
+        return digits.Length > 0 ? int.Parse(digits) : int.MaxValue;
+    }
+
+    // Recursively find every *.sql under rootPath and build a ScriptNode for each:
+    // Id = path relative to root (stable identity), Phase from the first folder,
+    // NameKey = relative path (tertiary sort), Sql = file content.
+    public static IReadOnlyList<ScriptNode> DiscoverScripts(string rootPath)
+    {
+        if (!Directory.Exists(rootPath))
+            throw new DirectoryNotFoundException($"Scripts directory not found: {rootPath}");
+
+        var nodes = new List<ScriptNode>();
+        foreach (var file in Directory.GetFiles(rootPath, "*.sql", SearchOption.AllDirectories))
+        {
+            var relative = Path.GetRelativePath(rootPath, file);
+            nodes.Add(new ScriptNode(relative, PhaseOf(relative), relative, File.ReadAllText(file)));
+        }
+        return nodes;
     }
 
     public string? GetConnectionString(string environment)
