@@ -364,6 +364,7 @@ public partial class DeployViewModel : ObservableObject
         {
             var nodes = SqlServerDeployer.DiscoverScripts(ScriptPath);
             var plan = ScriptDependencyResolver.Resolve(nodes, AutoOrderByDependencies);
+            if (plan.Order.Count == 0) return; // nothing to deploy; skip the preview noise
             SuccessLog.Add(new LogEntry($"Plan: {plan.Order.Count} script(s), dependency-ordered.", LogKind.Info));
             foreach (var e in plan.Edges)
                 SuccessLog.Add(new LogEntry($"  {e.ChildId} depends on {e.ParentId} (table {e.Table})", LogKind.Info));

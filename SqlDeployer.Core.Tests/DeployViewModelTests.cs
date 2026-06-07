@@ -67,8 +67,7 @@ public class DeployViewModelTests
 
         await vm.DeployCommand.ExecuteAsync(null);
 
-        // 1 "Plan: 0 script(s)..." preview line + 2 script success lines = 3.
-        Assert.Equal(3, vm.SuccessLog.Count);
+        Assert.Equal(2, vm.SuccessLog.Count);
         Assert.Empty(vm.ErrorLog);
         Assert.False(vm.IsBusy);
 
@@ -117,8 +116,7 @@ public class DeployViewModelTests
 
         await vm.DeployCommand.ExecuteAsync(null);
 
-        // 1 "Plan: 0 script(s)..." preview line + 1 success line = 2.
-        Assert.Equal(2, vm.SuccessLog.Count);
+        Assert.Single(vm.SuccessLog);
         Assert.Single(vm.ErrorLog);
 
         Directory.Delete(tempDir, true);
@@ -142,8 +140,7 @@ public class DeployViewModelTests
 
         await vm.DeployCommand.ExecuteAsync(null);
 
-        // 1 "Plan: 0 script(s)..." preview line + 2 status lines = 3.
-        Assert.Equal(3, vm.SuccessLog.Count);
+        Assert.Equal(2, vm.SuccessLog.Count);
         Assert.Contains(vm.SuccessLog, e => e.Message.Contains("already deployed"));
         Assert.Contains(vm.SuccessLog, e => e.Message.Contains("rollback"));
         Assert.True(vm.IsResultOpen);
@@ -190,9 +187,8 @@ public class DeployViewModelTests
 
         await vm.DeployCommand.ExecuteAsync(null);
 
-        // 1 "Plan: 0 script(s)..." preview line + 1 "No .sql files" line = 2.
-        Assert.Equal(2, vm.SuccessLog.Count);
-        Assert.Contains(vm.SuccessLog, e => e.Message.Contains("No .sql files"));
+        Assert.Single(vm.SuccessLog);
+        Assert.Contains("No .sql files", vm.SuccessLog[0].Message);
         Assert.True(vm.IsResultOpen);
 
         Directory.Delete(tempDir, true);
