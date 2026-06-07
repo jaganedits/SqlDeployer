@@ -15,6 +15,7 @@ public partial class App : Application
     public static DeployViewModel Deploy { get; private set; } = null!;
     public static HistoryViewModel History { get; private set; } = null!;
     public static SettingsViewModel SettingsVm { get; private set; } = null!;
+    public static ThemeService Theme { get; private set; } = null!;
 
     public App() => InitializeComponent();
 
@@ -45,17 +46,25 @@ public partial class App : Application
         _startTimer?.Stop();
         _startTimer = null;
 
+        Settings = SettingsService.Default();
+
+        // Apply the saved accent BEFORE constructing the window so controls bind to
+        // our accent brush instances (which we later mutate for live switching).
+        Theme = new ThemeService(Settings);
+        Theme.ApplyFromSettings();
+
         Window = new MainWindow();
+        Theme.ApplyBackdrop(Window);
 
         var deployer = new SqlServerDeployer();
         var dialogs = new DialogService(Window);
-        Settings = SettingsService.Default();
 
         Deploy = new DeployViewModel(new DeploymentRunner(deployer), deployer, dialogs, Settings);
         History = new HistoryViewModel(deployer);
         SettingsVm = new SettingsViewModel(Settings);
 
         SettingsVm.ThemeChanged += (_, theme) => ApplyTheme(theme);
+        SettingsVm.AccentChanged += (_, sel) => Theme.Apply(sel);
 
         // Keep the splash up a short beat after the app is ready, then hand off.
         _splashTimer = _splash!.DispatcherQueue.CreateTimer();
