@@ -148,5 +148,23 @@ public class ScriptDependencyResolverTests
         Assert.Equal(new[] { "PlanFeatureDetail.sql", "Planmaster.sql" },
             plan.Order.Select(n => n.Id)); // F < P by name; no dependency reordering
         Assert.Empty(plan.Edges);
+        Assert.Empty(plan.Cycle);
+    }
+
+    [Fact]
+    public void Parent_file_creating_two_referenced_tables_is_not_a_false_cycle()
+    {
+        var parent = Node("AB.sql", 1,
+            "CREATE TABLE A ( id INT PRIMARY KEY ); CREATE TABLE B ( id INT PRIMARY KEY );");
+        var child = Node("C.sql", 1,
+            "CREATE TABLE C ( a INT, b INT, " +
+            "CONSTRAINT fa FOREIGN KEY (a) REFERENCES A(id), " +
+            "CONSTRAINT fb FOREIGN KEY (b) REFERENCES B(id) );");
+
+        var plan = ScriptDependencyResolver.Resolve(new[] { child, parent });
+        var order = plan.Order.Select(n => n.Id).ToList();
+
+        Assert.Empty(plan.Cycle);
+        Assert.True(order.IndexOf("AB.sql") < order.IndexOf("C.sql"));
     }
 }
