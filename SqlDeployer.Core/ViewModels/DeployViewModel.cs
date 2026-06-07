@@ -29,8 +29,25 @@ public partial class DeployViewModel : ObservableObject
     [ObservableProperty] private bool _forceRerun;
 
     [ObservableProperty] private string _status = "Ready";
-    [ObservableProperty] private int _progressValue;
-    [ObservableProperty] private int _progressMax = 1;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(ProgressPercent))]
+    [NotifyPropertyChangedFor(nameof(ProgressText))]
+    private int _progressValue;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(ProgressPercent))]
+    [NotifyPropertyChangedFor(nameof(ProgressText))]
+    private int _progressMax = 1;
+
+    public int ProgressPercent => ProgressMax > 0
+        ? (int)(ProgressValue * 100.0 / ProgressMax)
+        : 0;
+
+    public string ProgressText => $"{ProgressPercent}% — {ProgressValue} / {ProgressMax}";
+
+    // Auto-order deploys by detected FK dependencies (persisted). Default on.
+    [ObservableProperty] private bool _autoOrderByDependencies = true;
 
     // Inline result banner shown after Test/Deploy (green on success, red on failure)
     // instead of an interrupting popup dialog.
@@ -67,6 +84,7 @@ public partial class DeployViewModel : ObservableObject
         ErrorLog.CollectionChanged += (_, _) => OnPropertyChanged(nameof(ErrorHeader));
 
         var loaded = _settings.Load();
+        _autoOrderByDependencies = loaded.AutoOrderByDependencies;
         foreach (var c in loaded.SavedConnections)
             if (!SavedServers.Contains(c.Server)) SavedServers.Add(c.Server);
 
@@ -159,6 +177,7 @@ public partial class DeployViewModel : ObservableObject
         IsBusy = true;
         _cts = new CancellationTokenSource();
         Status = "Loading pending scripts...";
+        LogPlanPreview();
 
         // Synchronous IProgress so the UI/log updates happen inline on the calling
         // thread (WinUI marshals via bindings; tests need deterministic ordering).
@@ -167,7 +186,7 @@ public partial class DeployViewModel : ObservableObject
         try
         {
             var cs = ConnectionStringFactory.Build(Server, Login, Password, Database);
-            var result = await _runner.RunAsync(cs, ScriptPath, Environment, progress, _cts.Token, ForceRerun);
+            var result = await _runner.RunAsync(cs, ScriptPath, Environment, progress, _cts.Token, ForceRerun, AutoOrderByDependencies);
 
             if (result.NoPendingScripts)
             {
@@ -327,6 +346,32 @@ public partial class DeployViewModel : ObservableObject
         _settings.Save(settings);
 
         if (!SavedServers.Contains(Server)) SavedServers.Add(Server);
+    }
+
+    partial void OnAutoOrderByDependenciesChanged(bool value)
+    {
+        var s = _settings.Load();
+        s.AutoOrderByDependencies = value;
+        _settings.Save(s);
+    }
+
+    // Logs the computed run order (and detected parent->child links) before running,
+    // so the auto-ordering is visible rather than a black box. Best-effort.
+    private void LogPlanPreview()
+    {
+        if (!AutoOrderByDependencies) return;
+        try
+        {
+            var nodes = SqlServerDeployer.DiscoverScripts(ScriptPath);
+            var plan = ScriptDependencyResolver.Resolve(nodes, AutoOrderByDependencies);
+            SuccessLog.Add(new LogEntry($"Plan: {plan.Order.Count} script(s), dependency-ordered.", LogKind.Info));
+            foreach (var e in plan.Edges)
+                SuccessLog.Add(new LogEntry($"  {e.ChildId} depends on {e.ParentId} (table {e.Table})", LogKind.Info));
+        }
+        catch
+        {
+            // Preview is best-effort; the real run still reports errors.
+        }
     }
 
     // Synchronous IProgress so the UI/log updates happen inline on the calling

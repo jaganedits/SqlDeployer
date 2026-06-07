@@ -10,4 +10,7 @@ public class AppSettings
 
     // "Light", "Dark", or "Default" (follow system).
     public string Theme { get; set; } = "Default";
+
+    // When true, deploys auto-order scripts by detected foreign-key dependencies.
+    public bool AutoOrderByDependencies { get; set; } = true;
 }

@@ -67,7 +67,8 @@ public class DeployViewModelTests
 
         await vm.DeployCommand.ExecuteAsync(null);
 
-        Assert.Equal(2, vm.SuccessLog.Count);
+        // 1 "Plan: 0 script(s)..." preview line + 2 script success lines = 3.
+        Assert.Equal(3, vm.SuccessLog.Count);
         Assert.Empty(vm.ErrorLog);
         Assert.False(vm.IsBusy);
 
@@ -116,7 +117,8 @@ public class DeployViewModelTests
 
         await vm.DeployCommand.ExecuteAsync(null);
 
-        Assert.Single(vm.SuccessLog);
+        // 1 "Plan: 0 script(s)..." preview line + 1 success line = 2.
+        Assert.Equal(2, vm.SuccessLog.Count);
         Assert.Single(vm.ErrorLog);
 
         Directory.Delete(tempDir, true);
@@ -140,7 +142,8 @@ public class DeployViewModelTests
 
         await vm.DeployCommand.ExecuteAsync(null);
 
-        Assert.Equal(2, vm.SuccessLog.Count);
+        // 1 "Plan: 0 script(s)..." preview line + 2 status lines = 3.
+        Assert.Equal(3, vm.SuccessLog.Count);
         Assert.Contains(vm.SuccessLog, e => e.Message.Contains("already deployed"));
         Assert.Contains(vm.SuccessLog, e => e.Message.Contains("rollback"));
         Assert.True(vm.IsResultOpen);
@@ -187,8 +190,9 @@ public class DeployViewModelTests
 
         await vm.DeployCommand.ExecuteAsync(null);
 
-        Assert.Single(vm.SuccessLog);
-        Assert.Contains("No .sql files", vm.SuccessLog[0].Message);
+        // 1 "Plan: 0 script(s)..." preview line + 1 "No .sql files" line = 2.
+        Assert.Equal(2, vm.SuccessLog.Count);
+        Assert.Contains(vm.SuccessLog, e => e.Message.Contains("No .sql files"));
         Assert.True(vm.IsResultOpen);
 
         Directory.Delete(tempDir, true);
@@ -274,5 +278,48 @@ public class DeployViewModelTests
 
         Assert.Contains(dialogs.Messages, m => m.Message.Contains("boom"));
         Assert.False(vm.IsBusy);
+    }
+
+    [Fact]
+    public async Task Deploy_drives_progress_percent_to_100()
+    {
+        var tempDir = Directory.CreateTempSubdirectory().FullName;
+        var deployer = new FakeSqlDeployer { Pending = { Script("001"), Script("002") } };
+        var vm = NewVm(deployer: deployer);
+        vm.Server = "s"; vm.Database = "d"; vm.ScriptPath = tempDir;
+
+        await vm.DeployCommand.ExecuteAsync(null);
+
+        Assert.Equal(100, vm.ProgressPercent);
+        Assert.Contains("100%", vm.ProgressText);
+
+        Directory.Delete(tempDir, true);
+    }
+
+    [Fact]
+    public void AutoOrder_toggle_persists_to_settings()
+    {
+        var settingsPath = Path.Combine(Path.GetTempPath(), "sqldeploy_vm_" + Guid.NewGuid().ToString("N") + ".json");
+        var vm = NewVm(settings: new SettingsService(settingsPath));
+
+        vm.AutoOrderByDependencies = false;
+
+        Assert.False(new SettingsService(settingsPath).Load().AutoOrderByDependencies);
+        File.Delete(settingsPath);
+    }
+
+    [Fact]
+    public async Task Deploy_passes_autoOrder_flag_to_deployer()
+    {
+        var tempDir = Directory.CreateTempSubdirectory().FullName;
+        var deployer = new FakeSqlDeployer { Pending = { Script("001") } };
+        var vm = NewVm(deployer: deployer);
+        vm.Server = "s"; vm.Database = "d"; vm.ScriptPath = tempDir;
+        vm.AutoOrderByDependencies = false;
+
+        await vm.DeployCommand.ExecuteAsync(null);
+
+        Assert.False(deployer.LastAutoOrder);
+        Directory.Delete(tempDir, true);
     }
 }
