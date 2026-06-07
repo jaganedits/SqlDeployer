@@ -1,21 +1,23 @@
-using Microsoft.UI;
+using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Data;
-using Microsoft.UI.Xaml.Media;
 using SqlDeployer.Models;
-using Windows.UI;
 
 namespace SqlDeployerGui.Converters;
 
 public class LogKindToBrushConverter : IValueConverter
 {
-    private static readonly SolidColorBrush Success = new(Color.FromArgb(255, 78, 201, 130));
-    private static readonly SolidColorBrush Error = new(Color.FromArgb(255, 232, 106, 102));
-    private static readonly SolidColorBrush Info = new(Colors.Gray);
-
-    public object Convert(object value, Type targetType, object parameter, string language) =>
-        value is LogKind k
-            ? k switch { LogKind.Success => Success, LogKind.Error => Error, _ => Info }
-            : Info;
+    public object Convert(object value, Type targetType, object parameter, string language)
+    {
+        var key = value switch
+        {
+            LogKind.Success => "LogSuccessBrush",
+            LogKind.Error => "LogErrorBrush",
+            _ => "LogInfoBrush",
+        };
+        return Application.Current.Resources.TryGetValue(key, out var brush)
+            ? brush
+            : Application.Current.Resources["LogInfoBrush"];
+    }
 
     public object ConvertBack(object value, Type targetType, object parameter, string language) =>
         throw new NotSupportedException();
