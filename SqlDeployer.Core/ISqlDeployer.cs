@@ -5,7 +5,8 @@ public interface ISqlDeployer
     Task<List<DeploymentScript>> GetPendingScripts(
         string scriptsPath, string environment, string connectionString,
         CancellationToken cancellationToken = default,
-        bool includeDeployed = false);
+        bool includeDeployed = false,
+        bool autoOrder = true);
 
     Task<List<ScriptStatus>> GetScriptStatuses(
         string scriptsPath, string connectionString,

@@ -13,15 +13,18 @@ public class FakeSqlDeployer : ISqlDeployer
 
     public List<ScriptStatus> ScriptStatuses { get; set; } = new();
 
-    // Records the last includeDeployed value so tests can assert the re-run flag flows through.
+    // Records the last includeDeployed / autoOrder values so tests can assert the flags flow through.
     public bool? LastIncludeDeployed { get; private set; }
+    public bool? LastAutoOrder { get; private set; }
 
     public Task<List<DeploymentScript>> GetPendingScripts(
         string scriptsPath, string environment, string connectionString,
         CancellationToken cancellationToken = default,
-        bool includeDeployed = false)
+        bool includeDeployed = false,
+        bool autoOrder = true)
     {
         LastIncludeDeployed = includeDeployed;
+        LastAutoOrder = autoOrder;
         return Task.FromResult(new List<DeploymentScript>(Pending));
     }
 

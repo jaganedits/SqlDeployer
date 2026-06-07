@@ -5,7 +5,7 @@ using SqlDeployer.Services;
 
 namespace SqlDeployer;
 
-public record DeploymentScript(string FileName, string Version, bool IsRollback);
+public record DeploymentScript(string FileName, string Version, bool IsRollback, string RelativePath = "");
 public record DeploymentHistory(string ScriptName, string Version, DateTime DeployedAt, bool Success, string? ErrorMessage = null);
 
 // One row per *.sql file found in the scripts folder, with why it will or won't run.
@@ -87,40 +87,39 @@ public class SqlServerDeployer : ISqlDeployer
         return builder.ConnectionString;
     }
 
-    public async Task<List<DeploymentScript>> GetPendingScripts(string scriptsPath, string environment, string connectionString, CancellationToken cancellationToken = default, bool includeDeployed = false)
+    public async Task<List<DeploymentScript>> GetPendingScripts(
+        string scriptsPath, string environment, string connectionString,
+        CancellationToken cancellationToken = default,
+        bool includeDeployed = false,
+        bool autoOrder = true)
     {
-        // When includeDeployed is true the deploy history is ignored, so every
-        // (non-rollback) script is re-run regardless of whether it ran before.
-        var deployedVersions = includeDeployed
-            ? new HashSet<string>()
-            : new HashSet<string>(await GetDeployedScripts(connectionString, cancellationToken));
+        // Identity is the relative path; dedup against scripts already applied OK.
+        var deployed = includeDeployed
+            ? new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+            : new HashSet<string>(
+                await GetDeployedScripts(connectionString, cancellationToken),
+                StringComparer.OrdinalIgnoreCase);
 
-        var scripts = new List<DeploymentScript>();
+        var nodes = DiscoverScripts(scriptsPath); // throws DirectoryNotFoundException if missing
+        var plan = ScriptDependencyResolver.Resolve(nodes, autoOrder);
 
-        if (!Directory.Exists(scriptsPath))
+        if (plan.Cycle.Count > 0)
+            throw new InvalidOperationException(
+                "Foreign-key cycle detected among: " + string.Join(", ", plan.Cycle) +
+                ". Break the cycle (e.g. move one FK into an ALTER script).");
+
+        var pending = new List<DeploymentScript>();
+        foreach (var n in plan.Order)
         {
-            throw new DirectoryNotFoundException($"Scripts directory not found: {scriptsPath}");
+            var isRollback = Path.GetFileNameWithoutExtension(n.Id)
+                .EndsWith("_rollback", StringComparison.OrdinalIgnoreCase);
+            if (isRollback) continue;
+            if (deployed.Contains(n.Id)) continue;
+
+            var fullPath = Path.Combine(scriptsPath, n.Id);
+            pending.Add(new DeploymentScript(fullPath, n.Id, isRollback, n.Id));
         }
-
-        // Get all SQL files sorted by version (numeric-aware so 2 sorts before 10)
-        var sqlFiles = Directory.GetFiles(scriptsPath, "*.sql")
-            .OrderBy(f => VersionSortKey(ExtractVersion(Path.GetFileNameWithoutExtension(f))), StringComparer.Ordinal)
-            .ToList();
-
-        foreach (var file in sqlFiles)
-        {
-            var fileName = Path.GetFileNameWithoutExtension(file);
-            var version = ExtractVersion(fileName);
-            var isRollback = fileName.EndsWith("_rollback", StringComparison.OrdinalIgnoreCase);
-
-            // Include scripts not yet deployed (or all of them when re-running), never rollbacks.
-            if (!deployedVersions.Contains(version) && !isRollback)
-            {
-                scripts.Add(new DeploymentScript(file, version, isRollback));
-            }
-        }
-
-        return scripts;
+        return pending;
     }
 
     // Diagnostic scan: every *.sql file in the folder with its computed version,
@@ -207,8 +206,10 @@ public class SqlServerDeployer : ISqlDeployer
                 }
             }
 
-            // Record the deployment results in the audit table
-            await LogDeployment(connection, Path.GetFileName(scriptPath), version, scriptSuccess, errorMessage, environment);
+            // version == relative-path identity (from DeploymentScript.Version);
+            // store it as ScriptName (NVARCHAR(255)); keep the leaf filename in Version.
+            await LogDeployment(connection, version, Path.GetFileName(scriptPath),
+                scriptSuccess, errorMessage, environment);
 
             if (!scriptSuccess)
             {
@@ -231,7 +232,7 @@ public class SqlServerDeployer : ISqlDeployer
                 command.CommandText = @"
                     IF OBJECT_ID('dbo.DeploymentHistory', 'U') IS NOT NULL
                     BEGIN
-                        SELECT DISTINCT Version FROM dbo.DeploymentHistory WHERE Success = 1
+                        SELECT DISTINCT ScriptName FROM dbo.DeploymentHistory WHERE Success = 1
                     END
                 ";
 
