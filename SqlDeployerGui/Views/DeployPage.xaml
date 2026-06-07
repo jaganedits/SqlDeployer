@@ -145,6 +145,13 @@
                                 IsEnabled="{Binding IsBusy}" />
                     </Grid>
 
+                    <!-- Inline result banner: directly under the actions so the
+                         success/error message is visible without scrolling. -->
+                    <muxc:InfoBar IsOpen="{Binding IsResultOpen, Mode=TwoWay}"
+                                  Severity="{Binding ResultKind, Converter={StaticResource Severity}}"
+                                  Message="{Binding ResultMessage}"
+                                  IsClosable="True" />
+
                     <!-- Live progress: bar + percentage -->
                     <StackPanel Spacing="6">
                         <ProgressBar Minimum="0"
@@ -170,11 +177,6 @@
                                    TextWrapping="Wrap" />
                     </StackPanel>
 
-                    <!-- Inline result banner: green on success, red on failure -->
-                    <muxc:InfoBar IsOpen="{Binding IsResultOpen, Mode=TwoWay}"
-                                  Severity="{Binding ResultKind, Converter={StaticResource Severity}}"
-                                  Message="{Binding ResultMessage}"
-                                  IsClosable="True" />
                 </StackPanel>
             </ScrollViewer>
 

@@ -58,8 +58,9 @@ public class DeploymentRunner
             {
                 failed++;
                 progress.Report(new DeploymentProgress(i + 1, pending.Count, displayName, Success: false, Error: ex.Message));
-                // Stop on first failure so a broken script can't cascade into a half-built DB.
-                return new DeploymentResult(success, failed, Cancelled: false, NoPendingScripts: false);
+                // Continue past failures: run everything that can run and collect every
+                // error, so the user sees all failures at once, then fixes and re-runs.
+                // Scripts are idempotent (IF NOT EXISTS) and FK-ordered, so this is safe.
             }
         }
 
