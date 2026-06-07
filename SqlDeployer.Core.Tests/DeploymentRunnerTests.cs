@@ -39,7 +39,7 @@ public class DeploymentRunnerTests
     }
 
     [Fact]
-    public async Task A_failing_script_is_counted_and_run_continues()
+    public async Task Stops_at_the_first_failing_script()
     {
         var fake = new FakeSqlDeployer
         {
@@ -51,9 +51,10 @@ public class DeploymentRunnerTests
         var result = await runner.RunAsync("cs", "path", "GUI",
             new Progress<DeploymentProgress>(), CancellationToken.None);
 
-        Assert.Equal(2, result.SucceededCount);
+        Assert.Equal(1, result.SucceededCount);
         Assert.Equal(1, result.FailedCount);
-        Assert.Equal(3, fake.Executed.Count); // did not stop at the failure
+        Assert.Equal(2, fake.Executed.Count); // stopped after 002 failed; 003 not run
+        Assert.Equal(new[] { "001", "002" }, fake.Executed.ToArray());
     }
 
     [Fact]

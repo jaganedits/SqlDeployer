@@ -19,10 +19,12 @@ public class DeploymentRunner
         string environment,
         IProgress<DeploymentProgress> progress,
         CancellationToken cancellationToken,
-        bool force = false)
+        bool force = false,
+        bool autoOrder = true)
     {
         var pending = await _deployer.GetPendingScripts(
-            scriptsPath, environment, connectionString, cancellationToken, includeDeployed: force);
+            scriptsPath, environment, connectionString, cancellationToken,
+            includeDeployed: force, autoOrder: autoOrder);
 
         if (pending.Count == 0)
             return new DeploymentResult(0, 0, Cancelled: false, NoPendingScripts: true);
@@ -35,15 +37,18 @@ public class DeploymentRunner
                 return new DeploymentResult(success, failed, Cancelled: true, NoPendingScripts: false);
 
             var script = pending[i];
-            var fileName = Path.GetFileName(script.FileName);
-            progress.Report(new DeploymentProgress(i + 1, pending.Count, fileName));
+            var displayName = string.IsNullOrEmpty(script.RelativePath)
+                ? Path.GetFileName(script.FileName)
+                : script.RelativePath;
+
+            progress.Report(new DeploymentProgress(i + 1, pending.Count, displayName));
 
             try
             {
                 await _deployer.ExecuteScript(
                     connectionString, script.FileName, script.Version, environment, cancellationToken);
                 success++;
-                progress.Report(new DeploymentProgress(i + 1, pending.Count, fileName, Success: true));
+                progress.Report(new DeploymentProgress(i + 1, pending.Count, displayName, Success: true));
             }
             catch (OperationCanceledException)
             {
@@ -52,7 +57,9 @@ public class DeploymentRunner
             catch (Exception ex)
             {
                 failed++;
-                progress.Report(new DeploymentProgress(i + 1, pending.Count, fileName, Success: false, Error: ex.Message));
+                progress.Report(new DeploymentProgress(i + 1, pending.Count, displayName, Success: false, Error: ex.Message));
+                // Stop on first failure so a broken script can't cascade into a half-built DB.
+                return new DeploymentResult(success, failed, Cancelled: false, NoPendingScripts: false);
             }
         }
 
