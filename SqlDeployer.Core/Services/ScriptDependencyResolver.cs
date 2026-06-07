@@ -38,4 +38,40 @@ public static class ScriptDependencyResolver
 
         return (schema + "." + table).ToLowerInvariant();
     }
+
+    private static readonly Regex BlockComment =
+        new(@"/\*.*?\*/", RegexOptions.Compiled | RegexOptions.Singleline);
+    private static readonly Regex LineComment =
+        new(@"--[^\n]*", RegexOptions.Compiled);
+    private static readonly Regex StringLiteral =
+        new(@"'(?:[^']|'')*'", RegexOptions.Compiled);
+
+    private static readonly Regex CreateTableRx = new(
+        @"CREATE\s+TABLE\s+(\[?[A-Za-z0-9_]+\]?(?:\s*\.\s*\[?[A-Za-z0-9_]+\]?)?)",
+        RegexOptions.IgnoreCase | RegexOptions.Compiled);
+    private static readonly Regex ReferencesRx = new(
+        @"REFERENCES\s+(\[?[A-Za-z0-9_]+\]?(?:\s*\.\s*\[?[A-Za-z0-9_]+\]?)?)",
+        RegexOptions.IgnoreCase | RegexOptions.Compiled);
+
+    // Remove block comments, line comments, and string literals so keywords and
+    // table names inside them can't create false matches.
+    public static string StripNoise(string sql)
+    {
+        sql = BlockComment.Replace(sql, " ");
+        sql = LineComment.Replace(sql, " ");
+        sql = StringLiteral.Replace(sql, " '' ");
+        return sql;
+    }
+
+    public static IReadOnlyList<string> CreatedTables(string sql) =>
+        CreateTableRx.Matches(StripNoise(sql))
+            .Select(m => NormalizeTableName(m.Groups[1].Value))
+            .Distinct()
+            .ToList();
+
+    public static IReadOnlyList<string> ReferencedTables(string sql) =>
+        ReferencesRx.Matches(StripNoise(sql))
+            .Select(m => NormalizeTableName(m.Groups[1].Value))
+            .Distinct()
+            .ToList();
 }
