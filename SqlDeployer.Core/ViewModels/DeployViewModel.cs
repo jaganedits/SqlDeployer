@@ -242,11 +242,13 @@ public partial class DeployViewModel : ObservableObject
 
         IsBusy = true;
         Status = "Loading databases...";
+        // Clear up front so a failed/cancelled load never leaves the previous
+        // server's databases on screen.
+        Databases.Clear();
         try
         {
             var cs = ConnectionStringFactory.BuildForServer(Server, Login, Password);
             var names = await _deployer.GetDatabases(cs);
-            Databases.Clear();
             foreach (var name in names) Databases.Add(name);
             Status = Databases.Count == 0 ? "No user databases found." : $"{Databases.Count} database(s) loaded.";
         }
@@ -346,6 +348,16 @@ public partial class DeployViewModel : ObservableObject
         _settings.Save(settings);
 
         if (!SavedServers.Contains(Server)) SavedServers.Add(Server);
+    }
+
+    // Editing the server invalidates the loaded database list — it belongs to the
+    // old server. Clearing it also re-arms the lazy reload in the Database box
+    // (which only fetches when the list is empty), so the new server's databases
+    // are pulled on next use instead of showing the previous server's.
+    partial void OnServerChanged(string value)
+    {
+        Databases.Clear();
+        Database = string.Empty;
     }
 
     partial void OnAutoOrderByDependenciesChanged(bool value)

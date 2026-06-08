@@ -277,6 +277,38 @@ public class DeployViewModelTests
     }
 
     [Fact]
+    public async Task Changing_server_clears_previously_loaded_databases()
+    {
+        var deployer = new FakeSqlDeployer { Databases = { "AppDb", "Sales" } };
+        var vm = NewVm(deployer: deployer);
+        vm.Server = "server-a";
+        await vm.LoadDatabasesCommand.ExecuteAsync(null);
+        Assert.Equal(2, vm.Databases.Count);
+
+        // Switching to a different server must drop the old server's database list.
+        vm.Server = "server-b";
+
+        Assert.Empty(vm.Databases);
+    }
+
+    [Fact]
+    public async Task LoadDatabases_failure_leaves_no_stale_databases()
+    {
+        var deployer = new FakeSqlDeployer { Databases = { "AppDb", "Sales" } };
+        var vm = NewVm(deployer: deployer);
+        vm.Server = "server-a";
+        await vm.LoadDatabasesCommand.ExecuteAsync(null);
+        Assert.Equal(2, vm.Databases.Count);
+
+        // A later load that fails (e.g. server unreachable) must not leave the
+        // previous successful list on screen.
+        deployer.GetDatabasesError = new InvalidOperationException("unreachable");
+        await vm.LoadDatabasesCommand.ExecuteAsync(null);
+
+        Assert.Empty(vm.Databases);
+    }
+
+    [Fact]
     public async Task Deploy_drives_progress_percent_to_100()
     {
         var tempDir = Directory.CreateTempSubdirectory().FullName;

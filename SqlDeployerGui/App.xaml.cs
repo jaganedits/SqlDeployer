@@ -64,7 +64,17 @@ public partial class App : Application
         SettingsVm = new SettingsViewModel(Settings);
 
         SettingsVm.ThemeChanged += (_, theme) => ApplyTheme(theme);
-        SettingsVm.AccentChanged += (_, sel) => Theme.Apply(sel);
+        SettingsVm.AccentChanged += (_, sel) =>
+        {
+            Theme.Apply(sel);
+            // Accent brushes/colors are swapped in Application.Resources, but the
+            // already-realized visual tree won't re-read them on its own — only a
+            // RequestedTheme change forces ThemeResource re-resolution. At startup
+            // that happens for free (ApplyTheme runs right after Apply); at runtime
+            // we have to nudge it ourselves, otherwise the new accent only shows
+            // after a restart.
+            RefreshThemeResources();
+        };
 
         // Keep the splash up a short beat after the app is ready, then hand off.
         _splashTimer = _splash!.DispatcherQueue.CreateTimer();
@@ -102,5 +112,23 @@ public partial class App : Application
                 _ => ElementTheme.Default
             };
         }
+    }
+
+    // Forces the live visual tree to re-resolve ThemeResource references (so a
+    // runtime accent swap is picked up immediately). Flips RequestedTheme to a
+    // different value and straight back in the same synchronous pass: each set
+    // re-resolves theme resources, and because the final value equals the original
+    // the intermediate value is never rendered — no visible flash.
+    private static void RefreshThemeResources()
+    {
+        if (Window?.Content is not FrameworkElement root) return;
+
+        var current = root.RequestedTheme;
+        var nudge = root.ActualTheme == ElementTheme.Dark
+            ? ElementTheme.Light
+            : ElementTheme.Dark;
+
+        root.RequestedTheme = nudge;
+        root.RequestedTheme = current;
     }
 }
