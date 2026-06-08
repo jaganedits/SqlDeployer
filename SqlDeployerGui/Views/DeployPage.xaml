@@ -9,6 +9,7 @@
 
     <Page.Resources>
         <conv:BoolNegationConverter x:Key="Not" />
+        <conv:BoolToVisibilityConverter x:Key="BoolToVis" />
         <conv:LogKindToBrushConverter x:Key="LogBrush" />
         <conv:LogKindToSeverityConverter x:Key="Severity" />
 
@@ -152,8 +153,10 @@
                                   Message="{Binding ResultMessage}"
                                   IsClosable="True" />
 
-                    <!-- Live progress: bar + percentage -->
-                    <StackPanel Spacing="6">
+                    <!-- Live progress: bar + percentage. Hidden until a deploy is
+                         actually running so it isn't shown at rest. -->
+                    <StackPanel Spacing="6"
+                                Visibility="{Binding IsDeploying, Converter={StaticResource BoolToVis}}">
                         <ProgressBar Minimum="0"
                                      Maximum="{Binding ProgressMax}"
                                      Value="{Binding ProgressValue}" />
