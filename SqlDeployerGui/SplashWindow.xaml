@@ -41,6 +41,8 @@
                 <Run Text="Designed by " />
                 <Run Text="Jagan Murugaiyan" Foreground="#FFC8D0DA" FontWeight="SemiBold" />
             </TextBlock>
+            <TextBlock x:Name="VersionText" HorizontalAlignment="Center" FontSize="11"
+                       CharacterSpacing="60" Foreground="#FF5C6675" Margin="0,6,0,0" />
         </StackPanel>
 
         <Grid.Resources>

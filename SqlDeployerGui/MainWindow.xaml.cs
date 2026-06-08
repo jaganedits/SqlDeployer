@@ -69,6 +69,16 @@ public sealed partial class MainWindow : Window
         titleBar.ButtonPressedBackgroundColor = pressedBg;
     }
 
+    // Surfaces a downloaded update as a dismissible top banner with a restart action.
+    public void ShowUpdateBanner(string version)
+    {
+        UpdateBanner.Message = $"SqlDeployer {version} has been downloaded. Restart to apply it.";
+        UpdateBanner.IsOpen = true;
+    }
+
+    private void UpdateRestart_Click(object sender, RoutedEventArgs e)
+        => App.Updates.ApplyAndRestart();
+
     private void Nav_SelectionChanged(NavigationView sender, NavigationViewSelectionChangedEventArgs args)
     {
         if (args.SelectedItem is NavigationViewItem item)

@@ -7,6 +7,7 @@
     <Grid Background="Transparent">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
             <RowDefinition Height="*" />
         </Grid.RowDefinitions>
 
@@ -23,7 +24,18 @@
             </StackPanel>
         </Grid>
 
-        <muxc:NavigationView x:Name="Nav" Grid.Row="1"
+        <!-- Top banner shown when a newer version has been downloaded. -->
+        <muxc:InfoBar x:Name="UpdateBanner" Grid.Row="1"
+                      Severity="Informational"
+                      IsOpen="False" IsClosable="True"
+                      Title="Update available"
+                      Margin="12,0,12,8">
+            <muxc:InfoBar.ActionButton>
+                <Button Content="Restart to update" Click="UpdateRestart_Click" />
+            </muxc:InfoBar.ActionButton>
+        </muxc:InfoBar>
+
+        <muxc:NavigationView x:Name="Nav" Grid.Row="2"
                              Background="Transparent"
                              IsBackButtonVisible="Collapsed"
                              IsSettingsVisible="False"

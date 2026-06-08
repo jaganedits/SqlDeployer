@@ -59,7 +59,7 @@ public sealed partial class SettingsPage : Page
                 break;
             case UpdateStatus.UpdateReady:
                 UpdateStatusText.Text = $"Version {result.Version} downloaded.";
-                await App.PromptRestartForUpdateAsync(result.Version!);
+                App.Window.ShowUpdateBanner(result.Version!);
                 break;
         }
     }

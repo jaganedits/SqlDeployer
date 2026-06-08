@@ -26,10 +26,12 @@ if (-not $Token) {
 
 $proj = "SqlDeployerGui/SqlDeployerGui.csproj"
 
-# 1. Stamp the version into the project file.
+# 1. Stamp the version into the project file (the <Version> element, wherever it sits).
 Write-Host "Setting version $Version in $proj ..." -ForegroundColor Cyan
 $xml = [xml](Get-Content $proj)
-$xml.Project.PropertyGroup[0].Version = $Version
+$node = $xml.SelectSingleNode("//Version")
+if (-not $node) { throw "No <Version> element found in $proj." }
+$node.InnerText = $Version
 $xml.Save((Resolve-Path $proj))
 
 # 2. Build the installer + update package.
