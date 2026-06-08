@@ -1,5 +1,6 @@
 using System;
 using System.IO;
+using System.Reflection;
 using System.Runtime.InteropServices;
 using Microsoft.UI;
 using Microsoft.UI.Windowing;
@@ -77,6 +78,9 @@ public sealed partial class SplashWindow : Window
         // start building the main window only after the splash is fully drawn.
         LogoImage.Source = new BitmapImage(
             new Uri(Path.Combine(AppContext.BaseDirectory, "Assets", "logo.png")));
+
+        var v = Assembly.GetExecutingAssembly().GetName().Version;
+        VersionText.Text = v is null ? "" : $"Version {v.Major}.{v.Minor}.{v.Build}";
 
         Root.Loaded += OnRootLoaded;
     }

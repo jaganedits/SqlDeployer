@@ -116,28 +116,8 @@ public partial class App : Application
     private static async Task CheckForUpdatesAsync()
     {
         var result = await Updates.CheckAndDownloadAsync();
-        if (result.Status != UpdateStatus.UpdateReady) return;
-        await PromptRestartForUpdateAsync(result.Version!);
-    }
-
-    // Offers to restart into a freshly downloaded update. Shared by the silent
-    // startup check and the manual "Check for updates" button in Settings.
-    public static async Task PromptRestartForUpdateAsync(string version)
-    {
-        if (Window.Content is not FrameworkElement root) return;
-
-        var dialog = new Microsoft.UI.Xaml.Controls.ContentDialog
-        {
-            Title = "Update available",
-            Content = $"SqlDeployer {version} has been downloaded. Restart now to apply it?",
-            PrimaryButtonText = "Restart now",
-            CloseButtonText = "Later",
-            DefaultButton = Microsoft.UI.Xaml.Controls.ContentDialogButton.Primary,
-            XamlRoot = root.XamlRoot
-        };
-
-        if (await dialog.ShowAsync() == Microsoft.UI.Xaml.Controls.ContentDialogResult.Primary)
-            Updates.ApplyAndRestart();
+        if (result.Status == UpdateStatus.UpdateReady)
+            Window.ShowUpdateBanner(result.Version!);
     }
 
     public static void ApplyTheme(string theme)
