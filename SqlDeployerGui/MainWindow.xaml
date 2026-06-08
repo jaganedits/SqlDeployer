@@ -46,12 +46,16 @@
                         <SymbolIcon Symbol="Setting" />
                     </muxc:NavigationViewItem.Icon>
                 </muxc:NavigationViewItem>
+            </muxc:NavigationView.MenuItems>
+
+            <!-- Bottom-aligned items -->
+            <muxc:NavigationView.FooterMenuItems>
                 <muxc:NavigationViewItem Content="About" Tag="About">
                     <muxc:NavigationViewItem.Icon>
                         <SymbolIcon Symbol="Contact" />
                     </muxc:NavigationViewItem.Icon>
                 </muxc:NavigationViewItem>
-            </muxc:NavigationView.MenuItems>
+            </muxc:NavigationView.FooterMenuItems>
 
             <Frame x:Name="ContentFrame" />
         </muxc:NavigationView>
