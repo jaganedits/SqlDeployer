@@ -62,6 +62,12 @@ public partial class DeployViewModel : ObservableObject
 
     public bool IsIdle => !IsBusy;
 
+    // True only while a deployment is actually running. Drives the progress bar's
+    // visibility so the "0% — 0 / 1" bar is hidden at rest and shown only after the
+    // user clicks Deploy. (IsBusy also covers Test Connection / Load Databases, which
+    // have no meaningful progress, so it isn't used for this.)
+    [ObservableProperty] private bool _isDeploying;
+
     public ObservableCollection<LogEntry> SuccessLog { get; } = new();
     public ObservableCollection<LogEntry> ErrorLog { get; } = new();
     public ObservableCollection<string> Databases { get; } = new();
@@ -189,6 +195,7 @@ public partial class DeployViewModel : ObservableObject
         ProgressValue = 0;
         IsResultOpen = false;
         IsBusy = true;
+        IsDeploying = true;
         _cts = new CancellationTokenSource();
         Status = "Loading pending scripts...";
         LogPlanPreview();
@@ -242,6 +249,7 @@ public partial class DeployViewModel : ObservableObject
             _cts?.Dispose();
             _cts = null;
             IsBusy = false;
+            IsDeploying = false;
         }
     }
 
