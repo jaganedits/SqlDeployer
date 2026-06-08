@@ -15,7 +15,7 @@
     <WindowsAppSDKSelfContained>true</WindowsAppSDKSelfContained>
     <SelfContained>true</SelfContained>
     <ApplicationIcon>Assets\app.ico</ApplicationIcon>
-    <Version>2.2.0</Version>
+    <Version>2.3.0</Version>
     <!-- We provide our own Main (Program.cs) so Velopack's hook runs before any UI. -->
     <DefineConstants>$(DefineConstants);DISABLE_XAML_GENERATED_MAIN</DefineConstants>
   </PropertyGroup>

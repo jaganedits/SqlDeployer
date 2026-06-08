@@ -101,6 +101,18 @@ public partial class DeployViewModel : ObservableObject
         }
     }
 
+    // Loads a full saved profile onto the form (used by the Settings list). Server
+    // is set first because OnServerChanged clears the database, so Database is set
+    // last to survive that reset.
+    public void LoadProfile(ConnectionProfile profile)
+    {
+        Server = profile.Server;
+        Login = profile.Login;
+        ScriptPath = profile.ScriptPath;
+        Password = CredentialProtector.Unprotect(profile.Secret);
+        Database = profile.Database;
+    }
+
     // Refill the credential fields from a previously-saved server, if known.
     public void ApplyServerProfile(string server)
     {

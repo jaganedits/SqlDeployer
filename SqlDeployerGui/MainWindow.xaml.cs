@@ -79,6 +79,13 @@ public sealed partial class MainWindow : Window
     private void UpdateRestart_Click(object sender, RoutedEventArgs e)
         => App.Updates.ApplyAndRestart();
 
+    // Selects the Deploy item (which navigates the frame via Nav_SelectionChanged).
+    public void GoToDeploy()
+    {
+        if (Nav.MenuItems.Count > 0)
+            Nav.SelectedItem = Nav.MenuItems[0];
+    }
+
     private void Nav_SelectionChanged(NavigationView sender, NavigationViewSelectionChangedEventArgs args)
     {
         if (args.SelectedItem is NavigationViewItem item)

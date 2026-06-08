@@ -8,6 +8,7 @@
 
     <Page.Resources>
         <conv:BoolNegationConverter x:Key="Not" />
+        <conv:BoolToVisibilityConverter x:Key="BoolToVis" />
     </Page.Resources>
 
     <ScrollViewer Padding="{StaticResource PagePadding}" VerticalScrollBarVisibility="Auto">
@@ -86,14 +87,62 @@
             </tk:SettingsExpander>
 
             <!-- ============ SAVED CONNECTION ============ -->
-            <tk:SettingsExpander Header="Saved connection"
-                                 Description="How credentials are remembered">
+            <tk:SettingsExpander Header="Saved connections"
+                                 Description="Load a saved server onto the Deploy form, or remove it"
+                                 IsExpanded="True">
                 <tk:SettingsExpander.HeaderIcon>
                     <FontIcon Glyph="&#xE72E;" />
                 </tk:SettingsExpander.HeaderIcon>
                 <tk:SettingsExpander.ItemsHeader>
-                    <TextBlock Padding="16,12" TextWrapping="Wrap" Style="{StaticResource Subtle}"
-                               Text="Connection details are remembered per server. After a successful Test Connection, the password is saved too — encrypted with Windows DPAPI, so only your Windows account can read it. Pick a saved server on the Deploy page to refill its credentials." />
+                    <StackPanel>
+                        <!-- Empty state -->
+                        <TextBlock Padding="16,12" TextWrapping="Wrap" Style="{StaticResource Subtle}"
+                                   Visibility="{Binding HasSavedConnections, Converter={StaticResource BoolToVis}, ConverterParameter=Invert}"
+                                   Text="No saved connections yet. After a successful Test Connection on the Deploy page, the server is remembered here (password encrypted with Windows DPAPI)." />
+
+                        <!-- List of saved connections -->
+                        <ItemsControl ItemsSource="{Binding SavedConnections}"
+                                      Visibility="{Binding HasSavedConnections, Converter={StaticResource BoolToVis}}">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <Grid Padding="16,10" ColumnSpacing="12"
+                                          BorderThickness="0,0,0,1"
+                                          BorderBrush="{ThemeResource DividerStrokeColorDefaultBrush}">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="Auto" />
+                                            <ColumnDefinition Width="*" />
+                                            <ColumnDefinition Width="Auto" />
+                                            <ColumnDefinition Width="Auto" />
+                                        </Grid.ColumnDefinitions>
+
+                                        <FontIcon Grid.Column="0" Glyph="&#xE968;" FontSize="16"
+                                                  VerticalAlignment="Center"
+                                                  Foreground="{ThemeResource TextFillColorTertiaryBrush}" />
+
+                                        <StackPanel Grid.Column="1" Spacing="1" VerticalAlignment="Center">
+                                            <TextBlock Text="{Binding Server}" Style="{StaticResource BodyStrongTextBlockStyle}" />
+                                            <TextBlock Style="{StaticResource Subtle}" FontSize="12" TextTrimming="CharacterEllipsis">
+                                                <Run Text="{Binding Login}" />
+                                                <Run Text="•" />
+                                                <Run Text="{Binding Database}" />
+                                            </TextBlock>
+                                        </StackPanel>
+
+                                        <Button Grid.Column="2" Content="Load" Click="LoadConnection_Click"
+                                                Tag="{Binding}" VerticalAlignment="Center"
+                                                ToolTipService.ToolTip="Load onto the Deploy form" />
+
+                                        <Button Grid.Column="3" Click="DeleteConnection_Click" Tag="{Binding}"
+                                                VerticalAlignment="Center" Padding="8"
+                                                Background="Transparent" BorderThickness="0"
+                                                ToolTipService.ToolTip="Delete this saved connection">
+                                            <FontIcon Glyph="&#xE74D;" FontSize="15" />
+                                        </Button>
+                                    </Grid>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </StackPanel>
                 </tk:SettingsExpander.ItemsHeader>
             </tk:SettingsExpander>
 
