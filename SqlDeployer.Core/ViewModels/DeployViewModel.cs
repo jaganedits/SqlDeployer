@@ -17,6 +17,7 @@ public partial class DeployViewModel : ObservableObject
     private readonly ISqlDeployer _deployer;
     private readonly IDialogService _dialogs;
     private readonly SettingsService _settings;
+    private readonly IDeployNotifier _notifier;
     private CancellationTokenSource? _cts;
 
     [ObservableProperty] private string _server = string.Empty;
@@ -73,12 +74,13 @@ public partial class DeployViewModel : ObservableObject
     public string SuccessHeader => $"Success ({SuccessLog.Count})";
     public string ErrorHeader => $"Errors ({ErrorLog.Count})";
 
-    public DeployViewModel(DeploymentRunner runner, ISqlDeployer deployer, IDialogService dialogs, SettingsService settings)
+    public DeployViewModel(DeploymentRunner runner, ISqlDeployer deployer, IDialogService dialogs, SettingsService settings, IDeployNotifier notifier)
     {
         _runner = runner;
         _deployer = deployer;
         _dialogs = dialogs;
         _settings = settings;
+        _notifier = notifier;
 
         SuccessLog.CollectionChanged += (_, _) => OnPropertyChanged(nameof(SuccessHeader));
         ErrorLog.CollectionChanged += (_, _) => OnPropertyChanged(nameof(ErrorHeader));
@@ -197,6 +199,9 @@ public partial class DeployViewModel : ObservableObject
             {
                 Status = "Deployment cancelled.";
                 ShowResult("Deployment cancelled.", LogKind.Info);
+                _notifier.Notify(DeployNotificationKind.Stopped,
+                    "Deployment stopped",
+                    $"Deployment to {Database} was cancelled.");
             }
             else
             {
@@ -204,6 +209,10 @@ public partial class DeployViewModel : ObservableObject
                 ShowResult(
                     $"Deployment complete — {result.SucceededCount} succeeded, {result.FailedCount} failed.",
                     result.FailedCount > 0 ? LogKind.Error : LogKind.Success);
+                _notifier.Notify(
+                    result.FailedCount > 0 ? DeployNotificationKind.Failed : DeployNotificationKind.Finished,
+                    result.FailedCount > 0 ? "Deployment finished with errors" : "Deployment finished",
+                    $"{Database}: {result.SucceededCount} succeeded, {result.FailedCount} failed.");
             }
 
             SaveCredential();
@@ -212,6 +221,9 @@ public partial class DeployViewModel : ObservableObject
         {
             Status = "Deployment failed.";
             ShowResult($"Deployment failed: {ex.Message}", LogKind.Error);
+            _notifier.Notify(DeployNotificationKind.Failed,
+                "Deployment failed",
+                $"Deployment to {Database} failed: {ex.Message}");
         }
         finally
         {

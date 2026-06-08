@@ -12,13 +12,15 @@ public class DeployViewModelTests
     private static DeployViewModel NewVm(
         FakeSqlDeployer? deployer = null,
         FakeDialogService? dialogs = null,
-        SettingsService? settings = null)
+        SettingsService? settings = null,
+        FakeDeployNotifier? notifier = null)
     {
         deployer ??= new FakeSqlDeployer();
         dialogs ??= new FakeDialogService();
+        notifier ??= new FakeDeployNotifier();
         settings ??= new SettingsService(Path.Combine(
             Path.GetTempPath(), "sqldeploy_vm_" + Guid.NewGuid().ToString("N") + ".json"));
-        return new DeployViewModel(new DeploymentRunner(deployer), deployer, dialogs, settings);
+        return new DeployViewModel(new DeploymentRunner(deployer), deployer, dialogs, settings, notifier);
     }
 
     private static DeploymentScript Script(string v) => new($@"C:\s\{v}_x.sql", v, false);
@@ -306,6 +308,82 @@ public class DeployViewModelTests
         await vm.LoadDatabasesCommand.ExecuteAsync(null);
 
         Assert.Empty(vm.Databases);
+    }
+
+    [Fact]
+    public async Task Successful_deploy_notifies_finished()
+    {
+        var tempDir = Directory.CreateTempSubdirectory().FullName;
+        var deployer = new FakeSqlDeployer { Pending = { Script("001"), Script("002") } };
+        var notifier = new FakeDeployNotifier();
+        var vm = NewVm(deployer: deployer, notifier: notifier);
+        vm.Server = "s"; vm.Database = "AppDb"; vm.ScriptPath = tempDir;
+
+        await vm.DeployCommand.ExecuteAsync(null);
+
+        var n = Assert.Single(notifier.Notifications);
+        Assert.Equal(DeployNotificationKind.Finished, n.Kind);
+        Assert.Contains("AppDb", n.Message);
+
+        Directory.Delete(tempDir, true);
+    }
+
+    [Fact]
+    public async Task Deploy_with_a_failed_script_notifies_failed()
+    {
+        var tempDir = Directory.CreateTempSubdirectory().FullName;
+        var deployer = new FakeSqlDeployer
+        {
+            Pending = { Script("001"), Script("002") },
+            FailingVersions = { "002" }
+        };
+        var notifier = new FakeDeployNotifier();
+        var vm = NewVm(deployer: deployer, notifier: notifier);
+        vm.Server = "s"; vm.Database = "d"; vm.ScriptPath = tempDir;
+
+        await vm.DeployCommand.ExecuteAsync(null);
+
+        var n = Assert.Single(notifier.Notifications);
+        Assert.Equal(DeployNotificationKind.Failed, n.Kind);
+
+        Directory.Delete(tempDir, true);
+    }
+
+    [Fact]
+    public async Task Cancelled_deploy_notifies_stopped()
+    {
+        var tempDir = Directory.CreateTempSubdirectory().FullName;
+        var deployer = new FakeSqlDeployer
+        {
+            Pending = { Script("001") },
+            OnExecute = _ => throw new OperationCanceledException()
+        };
+        var notifier = new FakeDeployNotifier();
+        var vm = NewVm(deployer: deployer, notifier: notifier);
+        vm.Server = "s"; vm.Database = "d"; vm.ScriptPath = tempDir;
+
+        await vm.DeployCommand.ExecuteAsync(null);
+
+        var n = Assert.Single(notifier.Notifications);
+        Assert.Equal(DeployNotificationKind.Stopped, n.Kind);
+
+        Directory.Delete(tempDir, true);
+    }
+
+    [Fact]
+    public async Task No_pending_scripts_does_not_notify()
+    {
+        var tempDir = Directory.CreateTempSubdirectory().FullName;
+        var deployer = new FakeSqlDeployer { Pending = { } };
+        var notifier = new FakeDeployNotifier();
+        var vm = NewVm(deployer: deployer, notifier: notifier);
+        vm.Server = "s"; vm.Database = "d"; vm.ScriptPath = tempDir;
+
+        await vm.DeployCommand.ExecuteAsync(null);
+
+        Assert.Empty(notifier.Notifications);
+
+        Directory.Delete(tempDir, true);
     }
 
     [Fact]

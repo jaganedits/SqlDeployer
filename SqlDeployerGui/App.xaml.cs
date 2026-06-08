@@ -1,5 +1,6 @@
 using Microsoft.UI.Dispatching;
 using Microsoft.UI.Xaml;
+using Microsoft.Windows.AppNotifications;
 using SqlDeployer;
 using SqlDeployer.Services;
 using SqlDeployer.ViewModels;
@@ -59,7 +60,12 @@ public partial class App : Application
         var deployer = new SqlServerDeployer();
         var dialogs = new DialogService(Window);
 
-        Deploy = new DeployViewModel(new DeploymentRunner(deployer), deployer, dialogs, Settings);
+        // Enable Windows toasts for deploy outcomes; tear down on window close.
+        AppNotificationManager.Default.Register();
+        Window.Closed += (_, _) => AppNotificationManager.Default.Unregister();
+        var notifier = new ToastNotifier(Window);
+
+        Deploy = new DeployViewModel(new DeploymentRunner(deployer), deployer, dialogs, Settings, notifier);
         History = new HistoryViewModel(deployer);
         SettingsVm = new SettingsViewModel(Settings);
 
