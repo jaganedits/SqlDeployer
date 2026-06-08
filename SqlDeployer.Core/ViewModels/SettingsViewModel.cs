@@ -1,4 +1,6 @@
+using System.Collections.ObjectModel;
 using CommunityToolkit.Mvvm.ComponentModel;
+using SqlDeployer.Models;
 using SqlDeployer.Services;
 using SqlDeployer.Theming;
 
@@ -13,6 +15,18 @@ public partial class SettingsViewModel : ObservableObject
 
     // Raised when any accent choice changes so the shell can re-apply the accent.
     public event EventHandler<AccentSelection>? AccentChanged;
+
+    // Raised when the user picks a saved connection to load onto the Deploy form.
+    public event EventHandler<ConnectionProfile>? LoadConnectionRequested;
+
+    // Raised (with the server name) when a saved connection is deleted, so the
+    // Deploy view model can drop it from its autocomplete list.
+    public event EventHandler<string>? ConnectionDeleted;
+
+    // The saved connections shown in Settings. Mirrors AppSettings.SavedConnections.
+    public ObservableCollection<ConnectionProfile> SavedConnections { get; } = new();
+
+    public bool HasSavedConnections => SavedConnections.Count > 0;
 
     public string[] Themes { get; } = { "Default", "Light", "Dark" };
 
@@ -32,6 +46,44 @@ public partial class SettingsViewModel : ObservableObject
         _selectedAccentPreset = s.AccentPreset;
         _customAccentColor = s.CustomAccentColor;
         _followSystemAccent = s.FollowSystemAccent;
+
+        RefreshSavedConnections();
+    }
+
+    // Reloads the saved-connection list from disk. Called on construction and when
+    // the Settings page is shown, so connections saved on the Deploy page appear.
+    public void RefreshSavedConnections()
+    {
+        SavedConnections.Clear();
+        foreach (var c in _settings.Load().SavedConnections)
+            SavedConnections.Add(c);
+        OnPropertyChanged(nameof(HasSavedConnections));
+    }
+
+    // Asks the shell to load this connection onto the Deploy form.
+    public void LoadConnection(ConnectionProfile profile)
+        => LoadConnectionRequested?.Invoke(this, profile);
+
+    // Removes a saved connection from disk and the list.
+    public void DeleteConnection(ConnectionProfile profile)
+    {
+        var s = _settings.Load();
+        s.SavedConnections.RemoveAll(c =>
+            string.Equals(c.Server, profile.Server, StringComparison.OrdinalIgnoreCase));
+
+        // Don't let a deleted server come back as the startup prefill.
+        if (s.LastConnection is not null &&
+            string.Equals(s.LastConnection.Server, profile.Server, StringComparison.OrdinalIgnoreCase))
+            s.LastConnection = null;
+
+        _settings.Save(s);
+
+        var existing = SavedConnections.FirstOrDefault(c =>
+            string.Equals(c.Server, profile.Server, StringComparison.OrdinalIgnoreCase));
+        if (existing is not null) SavedConnections.Remove(existing);
+        OnPropertyChanged(nameof(HasSavedConnections));
+
+        ConnectionDeleted?.Invoke(this, profile.Server);
     }
 
     partial void OnSelectedThemeChanged(string value)

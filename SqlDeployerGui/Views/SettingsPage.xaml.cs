@@ -3,6 +3,8 @@ using System.IO;
 using System.Reflection;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Media.Imaging;
+using Microsoft.UI.Xaml;
+using SqlDeployer.Models;
 using SqlDeployer.ViewModels;
 using SqlDeployerGui.Services;
 
@@ -16,6 +18,9 @@ public sealed partial class SettingsPage : Page
     {
         InitializeComponent();
         DataContext = Vm;
+
+        // Pull in any connections saved on the Deploy page since this VM was built.
+        Vm.RefreshSavedConnections();
 
         // About section assets + version (merged into the Settings screen).
         AppLogo.Source = LoadAsset("logo.png");
@@ -31,6 +36,18 @@ public sealed partial class SettingsPage : Page
     {
         if (sender is Button b && b.Tag is string preset)
             Vm.SelectedAccentPreset = preset;
+    }
+
+    private void LoadConnection_Click(object sender, RoutedEventArgs e)
+    {
+        if (sender is FrameworkElement { Tag: ConnectionProfile profile })
+            Vm.LoadConnection(profile);
+    }
+
+    private void DeleteConnection_Click(object sender, RoutedEventArgs e)
+    {
+        if (sender is FrameworkElement { Tag: ConnectionProfile profile })
+            Vm.DeleteConnection(profile);
     }
 
     private async void CheckUpdates_Click(object sender, Microsoft.UI.Xaml.RoutedEventArgs e)

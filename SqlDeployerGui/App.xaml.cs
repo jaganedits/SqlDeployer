@@ -71,6 +71,19 @@ public partial class App : Application
         SettingsVm = new SettingsViewModel(Settings);
         Updates = new UpdateService();
 
+        // Saved-connection list (Settings) ↔ Deploy form wiring.
+        SettingsVm.LoadConnectionRequested += (_, profile) =>
+        {
+            Deploy.LoadProfile(profile);
+            Window.GoToDeploy();
+        };
+        SettingsVm.ConnectionDeleted += (_, server) =>
+        {
+            var existing = Deploy.SavedServers.FirstOrDefault(
+                s => string.Equals(s, server, StringComparison.OrdinalIgnoreCase));
+            if (existing is not null) Deploy.SavedServers.Remove(existing);
+        };
+
         SettingsVm.ThemeChanged += (_, theme) => ApplyTheme(theme);
         SettingsVm.AccentChanged += (_, sel) =>
         {
