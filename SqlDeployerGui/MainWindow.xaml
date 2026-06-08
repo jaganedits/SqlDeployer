@@ -27,6 +27,7 @@
                              Background="Transparent"
                              IsBackButtonVisible="Collapsed"
                              IsSettingsVisible="False"
+                             AlwaysShowHeader="False"
                              SelectionChanged="Nav_SelectionChanged"
                              PaneDisplayMode="Left">
             <muxc:NavigationView.MenuItems>
@@ -43,6 +44,11 @@
                 <muxc:NavigationViewItem Content="Settings" Tag="Settings">
                     <muxc:NavigationViewItem.Icon>
                         <SymbolIcon Symbol="Setting" />
+                    </muxc:NavigationViewItem.Icon>
+                </muxc:NavigationViewItem>
+                <muxc:NavigationViewItem Content="About" Tag="About">
+                    <muxc:NavigationViewItem.Icon>
+                        <SymbolIcon Symbol="Contact" />
                     </muxc:NavigationViewItem.Icon>
                 </muxc:NavigationViewItem>
             </muxc:NavigationView.MenuItems>

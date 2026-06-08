@@ -78,6 +78,7 @@ public sealed partial class MainWindow : Window
                 case "Deploy": ContentFrame.Navigate(typeof(DeployPage)); break;
                 case "History": ContentFrame.Navigate(typeof(HistoryPage)); break;
                 case "Settings": ContentFrame.Navigate(typeof(SettingsPage)); break;
+                case "About": ContentFrame.Navigate(typeof(AboutPage)); break;
             }
         }
     }
