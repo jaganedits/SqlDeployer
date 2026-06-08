@@ -41,18 +41,13 @@
                         <SymbolIcon Symbol="Clock" />
                     </muxc:NavigationViewItem.Icon>
                 </muxc:NavigationViewItem>
-                <muxc:NavigationViewItem Content="Settings" Tag="Settings">
-                    <muxc:NavigationViewItem.Icon>
-                        <SymbolIcon Symbol="Setting" />
-                    </muxc:NavigationViewItem.Icon>
-                </muxc:NavigationViewItem>
             </muxc:NavigationView.MenuItems>
 
             <!-- Bottom-aligned items -->
             <muxc:NavigationView.FooterMenuItems>
-                <muxc:NavigationViewItem Content="About" Tag="About">
+                <muxc:NavigationViewItem Content="Settings" Tag="Settings">
                     <muxc:NavigationViewItem.Icon>
-                        <SymbolIcon Symbol="Contact" />
+                        <SymbolIcon Symbol="Setting" />
                     </muxc:NavigationViewItem.Icon>
                 </muxc:NavigationViewItem>
             </muxc:NavigationView.FooterMenuItems>

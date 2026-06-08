@@ -2,6 +2,8 @@
     x:Class="SqlDeployerGui.Views.SettingsPage"
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:muxc="using:Microsoft.UI.Xaml.Controls"
+    xmlns:tk="using:CommunityToolkit.WinUI.Controls"
     xmlns:conv="using:SqlDeployerGui.Converters">
 
     <Page.Resources>
@@ -9,76 +11,146 @@
     </Page.Resources>
 
     <ScrollViewer Padding="{StaticResource PagePadding}" VerticalScrollBarVisibility="Auto">
-        <StackPanel Spacing="20" MaxWidth="560" HorizontalAlignment="Left">
-            <StackPanel Spacing="2">
+        <StackPanel Spacing="4" HorizontalAlignment="Stretch">
+
+            <StackPanel Spacing="2" Margin="0,0,0,16">
                 <TextBlock Text="Settings" Style="{StaticResource TitleTextBlockStyle}" />
-                <TextBlock Text="Preferences and saved connection behavior."
+                <TextBlock Text="Preferences, saved connection behavior, and app info."
                            Style="{StaticResource Subtle}" />
             </StackPanel>
 
-            <Border Style="{StaticResource Card}">
-                <StackPanel Spacing="14">
-                    <TextBlock Text="APPEARANCE" Style="{StaticResource SectionCaption}" />
-                    <ComboBox Header="Theme" Width="240"
-                              ItemsSource="{Binding Themes}"
-                              SelectedItem="{Binding SelectedTheme, Mode=TwoWay}" />
+            <!-- ============ APPEARANCE ============ -->
+            <tk:SettingsExpander Header="Appearance"
+                                 Description="Theme and accent color"
+                                 IsExpanded="True">
+                <tk:SettingsExpander.HeaderIcon>
+                    <FontIcon Glyph="&#xE790;" />
+                </tk:SettingsExpander.HeaderIcon>
 
-                    <TextBlock Text="Accent" Style="{StaticResource Subtle}" FontSize="12" />
-                    <StackPanel Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
-                        <Button x:Name="SwAzure" Tag="Azure" Click="AccentSwatch_Click"
-                                Width="28" Height="28" MinWidth="0" MinHeight="0" Padding="0" CornerRadius="14"
-                                Background="#2F6FED" ToolTipService.ToolTip="Azure"
-                                IsEnabled="{Binding FollowSystemAccent, Converter={StaticResource Not}}" />
-                        <Button x:Name="SwEmerald" Tag="Emerald" Click="AccentSwatch_Click"
-                                Width="28" Height="28" MinWidth="0" MinHeight="0" Padding="0" CornerRadius="14"
-                                Background="#10B981" ToolTipService.ToolTip="Emerald"
-                                IsEnabled="{Binding FollowSystemAccent, Converter={StaticResource Not}}" />
-                        <Button x:Name="SwIndigo" Tag="Indigo" Click="AccentSwatch_Click"
-                                Width="28" Height="28" MinWidth="0" MinHeight="0" Padding="0" CornerRadius="14"
-                                Background="#7C5CFC" ToolTipService.ToolTip="Indigo"
-                                IsEnabled="{Binding FollowSystemAccent, Converter={StaticResource Not}}" />
-                        <Button x:Name="SwAmber" Tag="SlateAmber" Click="AccentSwatch_Click"
-                                Width="28" Height="28" MinWidth="0" MinHeight="0" Padding="0" CornerRadius="14"
-                                Background="#F59E0B" ToolTipService.ToolTip="Slate-Amber"
-                                IsEnabled="{Binding FollowSystemAccent, Converter={StaticResource Not}}" />
-                        <Button Width="28" Height="28" MinWidth="0" MinHeight="0" Padding="0" CornerRadius="14"
-                                ToolTipService.ToolTip="Custom color"
-                                IsEnabled="{Binding FollowSystemAccent, Converter={StaticResource Not}}">
-                            <Button.Background>
-                                <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
-                                    <GradientStop Color="#F85149" Offset="0" />
-                                    <GradientStop Color="#2F6FED" Offset="0.5" />
-                                    <GradientStop Color="#10B981" Offset="1" />
-                                </LinearGradientBrush>
-                            </Button.Background>
-                            <Button.Flyout>
-                                <Flyout>
-                                    <ColorPicker x:Name="CustomPicker"
-                                                 ColorSpectrumShape="Ring"
-                                                 IsMoreButtonVisible="True"
-                                                 IsColorChannelTextInputVisible="True"
-                                                 IsAlphaEnabled="False"
-                                                 ColorChanged="CustomPicker_ColorChanged" />
-                                </Flyout>
-                            </Button.Flyout>
-                        </Button>
-                        <TextBlock VerticalAlignment="Center" Style="{StaticResource Subtle}" FontSize="12"
-                                   Text="{Binding SelectedAccentPreset}" />
-                    </StackPanel>
+                <!-- Theme as the inline (right-aligned) control on the header row -->
+                <ComboBox MinWidth="160"
+                          ItemsSource="{Binding Themes}"
+                          SelectedItem="{Binding SelectedTheme, Mode=TwoWay}" />
 
-                    <CheckBox Content="Follow system accent color"
-                              IsChecked="{Binding FollowSystemAccent, Mode=TwoWay}" />
-                </StackPanel>
-            </Border>
+                <tk:SettingsExpander.Items>
+                    <tk:SettingsCard Header="Accent color"
+                                     Description="Pick a preset, or choose a custom color.">
+                        <StackPanel Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
+                            <Button x:Name="SwAzure" Tag="Azure" Click="AccentSwatch_Click"
+                                    Width="28" Height="28" MinWidth="0" MinHeight="0" Padding="0" CornerRadius="14"
+                                    Background="#2F6FED" ToolTipService.ToolTip="Azure"
+                                    IsEnabled="{Binding FollowSystemAccent, Converter={StaticResource Not}}" />
+                            <Button x:Name="SwEmerald" Tag="Emerald" Click="AccentSwatch_Click"
+                                    Width="28" Height="28" MinWidth="0" MinHeight="0" Padding="0" CornerRadius="14"
+                                    Background="#10B981" ToolTipService.ToolTip="Emerald"
+                                    IsEnabled="{Binding FollowSystemAccent, Converter={StaticResource Not}}" />
+                            <Button x:Name="SwIndigo" Tag="Indigo" Click="AccentSwatch_Click"
+                                    Width="28" Height="28" MinWidth="0" MinHeight="0" Padding="0" CornerRadius="14"
+                                    Background="#7C5CFC" ToolTipService.ToolTip="Indigo"
+                                    IsEnabled="{Binding FollowSystemAccent, Converter={StaticResource Not}}" />
+                            <Button x:Name="SwAmber" Tag="SlateAmber" Click="AccentSwatch_Click"
+                                    Width="28" Height="28" MinWidth="0" MinHeight="0" Padding="0" CornerRadius="14"
+                                    Background="#F59E0B" ToolTipService.ToolTip="Slate-Amber"
+                                    IsEnabled="{Binding FollowSystemAccent, Converter={StaticResource Not}}" />
+                            <Button Width="28" Height="28" MinWidth="0" MinHeight="0" Padding="0" CornerRadius="14"
+                                    ToolTipService.ToolTip="Custom color"
+                                    IsEnabled="{Binding FollowSystemAccent, Converter={StaticResource Not}}">
+                                <Button.Background>
+                                    <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
+                                        <GradientStop Color="#F85149" Offset="0" />
+                                        <GradientStop Color="#2F6FED" Offset="0.5" />
+                                        <GradientStop Color="#10B981" Offset="1" />
+                                    </LinearGradientBrush>
+                                </Button.Background>
+                                <Button.Flyout>
+                                    <Flyout>
+                                        <muxc:ColorPicker x:Name="CustomPicker"
+                                                          ColorSpectrumShape="Ring"
+                                                          IsMoreButtonVisible="True"
+                                                          IsColorChannelTextInputVisible="True"
+                                                          IsAlphaEnabled="False"
+                                                          ColorChanged="CustomPicker_ColorChanged" />
+                                    </Flyout>
+                                </Button.Flyout>
+                            </Button>
+                            <TextBlock VerticalAlignment="Center" Style="{StaticResource Subtle}" FontSize="12"
+                                       Text="{Binding SelectedAccentPreset}" />
+                        </StackPanel>
+                    </tk:SettingsCard>
 
-            <Border Style="{StaticResource Card}">
-                <StackPanel Spacing="10">
-                    <TextBlock Text="SAVED CONNECTION" Style="{StaticResource SectionCaption}" />
-                    <TextBlock Text="Connection details are remembered per server. After a successful Test Connection, the password is saved too — encrypted with Windows DPAPI, so only your Windows account can read it. Pick a saved server on the Deploy page to refill its credentials."
-                               Style="{StaticResource Subtle}"
-                               TextWrapping="Wrap" />
-                </StackPanel>
-            </Border>
+                    <tk:SettingsCard Header="Follow system accent color"
+                                     Description="Use the accent color set in Windows.">
+                        <ToggleSwitch IsOn="{Binding FollowSystemAccent, Mode=TwoWay}" />
+                    </tk:SettingsCard>
+                </tk:SettingsExpander.Items>
+            </tk:SettingsExpander>
+
+            <!-- ============ SAVED CONNECTION ============ -->
+            <tk:SettingsExpander Header="Saved connection"
+                                 Description="How credentials are remembered">
+                <tk:SettingsExpander.HeaderIcon>
+                    <FontIcon Glyph="&#xE72E;" />
+                </tk:SettingsExpander.HeaderIcon>
+                <tk:SettingsExpander.ItemsHeader>
+                    <TextBlock Padding="16,12" TextWrapping="Wrap" Style="{StaticResource Subtle}"
+                               Text="Connection details are remembered per server. After a successful Test Connection, the password is saved too — encrypted with Windows DPAPI, so only your Windows account can read it. Pick a saved server on the Deploy page to refill its credentials." />
+                </tk:SettingsExpander.ItemsHeader>
+            </tk:SettingsExpander>
+
+            <!-- ============ ABOUT ============ -->
+            <tk:SettingsExpander x:Name="AboutExpander" Header="About">
+                <tk:SettingsExpander.HeaderIcon>
+                    <FontIcon Glyph="&#xE946;" />
+                </tk:SettingsExpander.HeaderIcon>
+                <tk:SettingsExpander.ItemsHeader>
+                        <StackPanel Spacing="18" Padding="16,12" HorizontalAlignment="Stretch">
+                            <StackPanel Orientation="Horizontal" Spacing="16">
+                                <Image x:Name="AppLogo" Width="48" Height="48" VerticalAlignment="Top" />
+                                <StackPanel Spacing="6" MaxWidth="620">
+                                    <TextBlock Text="SQL Deploy — Migration Console"
+                                               Style="{StaticResource BodyStrongTextBlockStyle}" />
+                                    <TextBlock TextWrapping="Wrap" Style="{StaticResource Subtle}"
+                                               Text="Apply versioned SQL migration scripts to SQL Server with dependency-aware ordering, deployment history, and one-time-apply safety. A modern WinUI re-design of the original WinForms deployment tool." />
+                                    <TextBlock x:Name="VersionLine" Style="{StaticResource Subtle}"
+                                               FontSize="12" Margin="0,4,0,0" />
+                                </StackPanel>
+                            </StackPanel>
+
+                            <Grid ColumnSpacing="16">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="*" />
+                                </Grid.ColumnDefinitions>
+
+                                <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="14">
+                                    <muxc:PersonPicture x:Name="SabarishPhoto" Width="64" Height="64"
+                                                        VerticalAlignment="Top" />
+                                    <StackPanel Spacing="4" VerticalAlignment="Center">
+                                        <TextBlock Text="Sabarish" Style="{StaticResource BodyStrongTextBlockStyle}" />
+                                        <TextBlock Text="Developer" Style="{StaticResource Subtle}" FontSize="12" />
+                                        <HyperlinkButton Content="LinkedIn ↗" Padding="0,2"
+                                                         NavigateUri="https://www.linkedin.com/in/sabarish55/" />
+                                    </StackPanel>
+                                </StackPanel>
+
+                                <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="14">
+                                    <muxc:PersonPicture x:Name="JaganPhoto" Width="64" Height="64"
+                                                        VerticalAlignment="Top" />
+                                    <StackPanel Spacing="4" VerticalAlignment="Center">
+                                        <TextBlock Text="Jagan Murugaiyan" Style="{StaticResource BodyStrongTextBlockStyle}" />
+                                        <TextBlock Text="Developer" Style="{StaticResource Subtle}" FontSize="12" />
+                                        <HyperlinkButton Content="LinkedIn ↗" Padding="0,2"
+                                                         NavigateUri="https://www.linkedin.com/in/jaganedits/" />
+                                    </StackPanel>
+                                </StackPanel>
+                            </Grid>
+
+                            <TextBlock Text="Developed &amp; re-designed by Sabarish and Jagan Murugaiyan."
+                                       Style="{StaticResource Subtle}" FontSize="12" />
+                        </StackPanel>
+                </tk:SettingsExpander.ItemsHeader>
+            </tk:SettingsExpander>
+
         </StackPanel>
     </ScrollViewer>
 </Page>
