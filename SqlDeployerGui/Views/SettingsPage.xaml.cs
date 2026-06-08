@@ -4,6 +4,7 @@ using System.Reflection;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Media.Imaging;
 using SqlDeployer.ViewModels;
+using SqlDeployerGui.Services;
 
 namespace SqlDeployerGui.Views;
 
@@ -30,6 +31,37 @@ public sealed partial class SettingsPage : Page
     {
         if (sender is Button b && b.Tag is string preset)
             Vm.SelectedAccentPreset = preset;
+    }
+
+    private async void CheckUpdates_Click(object sender, Microsoft.UI.Xaml.RoutedEventArgs e)
+    {
+        CheckUpdatesButton.IsEnabled = false;
+        UpdateProgress.IsActive = true;
+        UpdateProgress.Visibility = Microsoft.UI.Xaml.Visibility.Visible;
+        UpdateStatusText.Text = "Checking…";
+
+        var result = await App.Updates.CheckAndDownloadAsync();
+
+        UpdateProgress.IsActive = false;
+        UpdateProgress.Visibility = Microsoft.UI.Xaml.Visibility.Collapsed;
+        CheckUpdatesButton.IsEnabled = true;
+
+        switch (result.Status)
+        {
+            case UpdateStatus.UpToDate:
+                UpdateStatusText.Text = "You're up to date.";
+                break;
+            case UpdateStatus.NotInstalled:
+                UpdateStatusText.Text = "Updates apply only to the installed app.";
+                break;
+            case UpdateStatus.Failed:
+                UpdateStatusText.Text = "Couldn't check — try again later.";
+                break;
+            case UpdateStatus.UpdateReady:
+                UpdateStatusText.Text = $"Version {result.Version} downloaded.";
+                await App.PromptRestartForUpdateAsync(result.Version!);
+                break;
+        }
     }
 
     private void CustomPicker_ColorChanged(ColorPicker sender, ColorChangedEventArgs args)

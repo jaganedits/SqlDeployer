@@ -3,6 +3,8 @@ obj/
 .vs/
 *.user
 publish/
+Releases/
+deployer/
 
 # Tooling / editor / brainstorm artifacts
 .superpowers/

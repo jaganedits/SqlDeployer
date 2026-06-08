@@ -17,6 +17,8 @@
     <SelfContained>true</SelfContained>
     <ApplicationIcon>Assets\app.ico</ApplicationIcon>
     <Version>2.0.0</Version>
+    <!-- We provide our own Main (Program.cs) so Velopack's hook runs before any UI. -->
+    <DefineConstants>$(DefineConstants);DISABLE_XAML_GENERATED_MAIN</DefineConstants>
   </PropertyGroup>
 
   <ItemGroup>
@@ -38,6 +40,7 @@
     <PackageReference Include="CommunityToolkit.WinUI.Controls.SettingsControls" Version="8.2.251219" />
     <PackageReference Include="Microsoft.WindowsAppSDK" Version="1.7.250606001" />
     <PackageReference Include="Microsoft.Windows.SDK.BuildTools" Version="10.0.26100.4654" />
+    <PackageReference Include="Velopack" Version="1.2.0" />
   </ItemGroup>
 
   <ItemGroup>

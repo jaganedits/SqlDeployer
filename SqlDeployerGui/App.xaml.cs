@@ -17,6 +17,7 @@ public partial class App : Application
     public static HistoryViewModel History { get; private set; } = null!;
     public static SettingsViewModel SettingsVm { get; private set; } = null!;
     public static ThemeService Theme { get; private set; } = null!;
+    public static UpdateService Updates { get; private set; } = null!;
 
     public App() => InitializeComponent();
 
@@ -68,6 +69,7 @@ public partial class App : Application
         Deploy = new DeployViewModel(new DeploymentRunner(deployer), deployer, dialogs, Settings, notifier);
         History = new HistoryViewModel(deployer);
         SettingsVm = new SettingsViewModel(Settings);
+        Updates = new UpdateService();
 
         SettingsVm.ThemeChanged += (_, theme) => ApplyTheme(theme);
         SettingsVm.AccentChanged += (_, sel) =>
@@ -94,6 +96,10 @@ public partial class App : Application
             Window.Activate();
             ApplyTheme(SettingsVm.SelectedTheme);
 
+            // Look for a newer GitHub release in the background; prompt once if one
+            // is downloaded and ready. No-op for dev/xcopy runs (not installed).
+            _ = CheckForUpdatesAsync();
+
             // Close the splash only after the main window has painted a frame,
             // otherwise there is a brief black gap between the two windows.
             var dq = Window.DispatcherQueue;
@@ -105,6 +111,33 @@ public partial class App : Application
                 }));
         };
         _splashTimer.Start();
+    }
+
+    private static async Task CheckForUpdatesAsync()
+    {
+        var result = await Updates.CheckAndDownloadAsync();
+        if (result.Status != UpdateStatus.UpdateReady) return;
+        await PromptRestartForUpdateAsync(result.Version!);
+    }
+
+    // Offers to restart into a freshly downloaded update. Shared by the silent
+    // startup check and the manual "Check for updates" button in Settings.
+    public static async Task PromptRestartForUpdateAsync(string version)
+    {
+        if (Window.Content is not FrameworkElement root) return;
+
+        var dialog = new Microsoft.UI.Xaml.Controls.ContentDialog
+        {
+            Title = "Update available",
+            Content = $"SqlDeployer {version} has been downloaded. Restart now to apply it?",
+            PrimaryButtonText = "Restart now",
+            CloseButtonText = "Later",
+            DefaultButton = Microsoft.UI.Xaml.Controls.ContentDialogButton.Primary,
+            XamlRoot = root.XamlRoot
+        };
+
+        if (await dialog.ShowAsync() == Microsoft.UI.Xaml.Controls.ContentDialogResult.Primary)
+            Updates.ApplyAndRestart();
     }
 
     public static void ApplyTheme(string theme)
