@@ -98,6 +98,55 @@ dotnet publish SqlDeployerGui/SqlDeployerGui.csproj -c Release -o publish
 
 The runnable app is then `publish\SqlDeployerGui.exe`.
 
+## Installer & releases (Velopack)
+
+The app ships as a single **`Setup.exe`** that installs per-user, adds Start-menu /
+desktop shortcuts, registers in Add/Remove Programs, and auto-updates from GitHub
+Releases. Tooling is the [Velopack](https://velopack.io) `vpk` CLI — install it once:
+
+```powershell
+dotnet tool install -g vpk
+```
+
+**Build the installer locally** (no upload):
+
+```powershell
+.\make-installer.ps1                 # uses <Version> from the .csproj
+.\make-installer.ps1 -Version 2.1.0  # override the version
+```
+
+Output lands in `.\Releases`:
+
+| File | Purpose |
+|------|---------|
+| `SqlDeployer-win-Setup.exe` | The installer you hand to users (install + uninstall). |
+| `SqlDeployer-<ver>-full.nupkg` + `RELEASES` | The update feed — upload so installed apps self-update. |
+| `SqlDeployer-win-Portable.zip` | A no-install portable build. |
+
+**Publish a release** (build + push to GitHub in one step, so installed apps update):
+
+```powershell
+$env:GITHUB_TOKEN = "ghp_xxx"            # token with 'repo' scope (once per shell)
+.\publish-release.ps1 -Version 2.1.0
+```
+
+This stamps the version into the `.csproj`, builds the installer, then creates a
+published GitHub release `v2.1.0` and uploads the feed. Already-installed apps detect
+it on next launch (or via **Settings → Updates → Check for updates**) and offer a
+one-click restart-to-update.
+
+> **Versioning:** always bump `-Version` for each release. Velopack refuses to repack a
+> version already present in `.\Releases`, and installed clients only update to a
+> *higher* version.
+
+> **Code signing:** unsigned installers trigger a SmartScreen warning on first run. For
+> public distribution, pass `--signParams` to `vpk pack` (in `make-installer.ps1`) with a
+> code-signing certificate.
+
+> **Vercel hosting:** to serve the feed from Vercel instead of GitHub, host the `Releases`
+> folder as static files and swap `GithubSource` for `SimpleWebSource` (pointed at that
+> URL) in [`UpdateService.cs`](SqlDeployerGui/Services/UpdateService.cs).
+
 ## Clean
 
 ```powershell

@@ -97,6 +97,22 @@
                 </tk:SettingsExpander.ItemsHeader>
             </tk:SettingsExpander>
 
+            <!-- ============ UPDATES ============ -->
+            <tk:SettingsCard Header="Updates"
+                             Description="Check GitHub for a newer version.">
+                <tk:SettingsCard.HeaderIcon>
+                    <FontIcon Glyph="&#xE895;" />
+                </tk:SettingsCard.HeaderIcon>
+                <StackPanel Orientation="Horizontal" Spacing="12" VerticalAlignment="Center">
+                    <TextBlock x:Name="UpdateStatusText" VerticalAlignment="Center"
+                               Style="{StaticResource Subtle}" FontSize="12" />
+                    <ProgressRing x:Name="UpdateProgress" Width="18" Height="18"
+                                  IsActive="False" Visibility="Collapsed" />
+                    <Button x:Name="CheckUpdatesButton" Content="Check for updates"
+                            Click="CheckUpdates_Click" />
+                </StackPanel>
+            </tk:SettingsCard>
+
             <!-- ============ ABOUT ============ -->
             <tk:SettingsExpander x:Name="AboutExpander" Header="About">
                 <tk:SettingsExpander.HeaderIcon>
