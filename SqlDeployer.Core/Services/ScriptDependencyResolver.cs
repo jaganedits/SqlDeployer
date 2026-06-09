@@ -17,6 +17,25 @@ public sealed record OrderedPlan(
     IReadOnlyList<DependencyEdge> Edges,
     IReadOnlyList<string> Cycle);
 
+// The kind of object a script creates, in dependency order: a lower value must be
+// deployed before a higher one. This is the *primary* ordering key — it makes the
+// canonical order partition-infra → sequence → function → table → alter → index →
+// view → procedure → trigger → data, regardless of how the author numbers folders.
+public enum SqlObjectKind
+{
+    PartitionInfra = 0, // filegroups, partition functions/schemes (ALTER DATABASE)
+    Sequence = 1,
+    Function = 2,       // tables' computed columns / defaults call these
+    Table = 3,
+    AlterTable = 4,     // ADD COLUMN / ADD CONSTRAINT (all tables exist by now)
+    Index = 5,
+    View = 6,
+    Procedure = 7,
+    Trigger = 8,
+    Data = 9,           // INSERT / UPDATE / MERGE seed scripts
+    Unknown = 10,       // nothing recognized — ordered last, author phase breaks ties
+}
+
 // Pure SQL-text analysis + topological ordering. No file or DB access.
 public static class ScriptDependencyResolver
 {
@@ -77,17 +96,72 @@ public static class ScriptDependencyResolver
             .Distinct()
             .ToList();
 
-    // Order scripts: phase ascending (absolute), then a topological FK sort within
-    // each phase (parent before child), then stable name order among independents.
+    // Ordered (kind, pattern) probes. The first match against the noise-stripped SQL
+    // wins, so a multi-statement file classifies by its most significant DDL — e.g. a
+    // CREATE TABLE followed by ALTER TABLE is a Table, and a table-valued function
+    // (CREATE FUNCTION … RETURNS TABLE) is a Function, not a Table.
+    private static readonly (SqlObjectKind Kind, Regex Rx)[] KindProbes =
+    [
+        // Database-level partition infrastructure runs first. ALTER DATABASE covers the
+        // filegroup/.ndf scripts; the partition function/scheme have their own keywords.
+        (SqlObjectKind.PartitionInfra,
+            new(@"\bCREATE\s+PARTITION\s+(FUNCTION|SCHEME)\b|\bALTER\s+DATABASE\b",
+                RegexOptions.IgnoreCase | RegexOptions.Compiled)),
+        (SqlObjectKind.Sequence, new(@"\bCREATE\s+SEQUENCE\b",
+            RegexOptions.IgnoreCase | RegexOptions.Compiled)),
+        (SqlObjectKind.Function, new(@"\bCREATE\s+(OR\s+ALTER\s+)?FUNCTION\b",
+            RegexOptions.IgnoreCase | RegexOptions.Compiled)),
+        (SqlObjectKind.Table, new(@"\bCREATE\s+TABLE\b",
+            RegexOptions.IgnoreCase | RegexOptions.Compiled)),
+        (SqlObjectKind.AlterTable, new(@"\bALTER\s+TABLE\b",
+            RegexOptions.IgnoreCase | RegexOptions.Compiled)),
+        (SqlObjectKind.Index,
+            new(@"\bCREATE\s+(UNIQUE\s+)?(CLUSTERED\s+|NONCLUSTERED\s+)?INDEX\b",
+                RegexOptions.IgnoreCase | RegexOptions.Compiled)),
+        (SqlObjectKind.View, new(@"\bCREATE\s+(OR\s+ALTER\s+)?VIEW\b",
+            RegexOptions.IgnoreCase | RegexOptions.Compiled)),
+        (SqlObjectKind.Procedure, new(@"\bCREATE\s+(OR\s+ALTER\s+)?PROC(EDURE)?\b",
+            RegexOptions.IgnoreCase | RegexOptions.Compiled)),
+        (SqlObjectKind.Trigger, new(@"\bCREATE\s+(OR\s+ALTER\s+)?TRIGGER\b",
+            RegexOptions.IgnoreCase | RegexOptions.Compiled)),
+        (SqlObjectKind.Data, new(@"\b(INSERT|UPDATE|MERGE)\b",
+            RegexOptions.IgnoreCase | RegexOptions.Compiled)),
+    ];
+
+    // Classify a script by what it creates, from its SQL content (comments/strings
+    // stripped). Used as the primary ordering key in Resolve.
+    public static SqlObjectKind ClassifyKind(string sql)
+    {
+        var clean = StripNoise(sql);
+        foreach (var (kind, rx) in KindProbes)
+            if (rx.IsMatch(clean))
+                return kind;
+        return SqlObjectKind.Unknown;
+    }
+
+    // Order scripts: object-type rank ascending (absolute — a function before a table
+    // that uses it, etc.), then folder phase, then a topological FK sort within each
+    // rank (parent before child), then stable name order among independents.
     public static OrderedPlan Resolve(IEnumerable<ScriptNode> nodes, bool autoOrder = true)
     {
-        var baseOrder = nodes
-            .OrderBy(n => n.Phase)
+        var all = nodes.ToList();
+
+        // Escape hatch: literal folder-phase + name order, no ranking or FK sort.
+        if (!autoOrder)
+            return new OrderedPlan(
+                all.OrderBy(n => n.Phase)
+                   .ThenBy(n => n.Id, StringComparer.OrdinalIgnoreCase)
+                   .ToList(),
+                [], []);
+
+        // Classify each script once; rank is the primary ordering key.
+        var rank = all.ToDictionary(n => n, n => (int)ClassifyKind(n.Sql));
+
+        var baseOrder = all
+            .OrderBy(n => rank[n])
+            .ThenBy(n => n.Phase)
             .ThenBy(n => n.Id, StringComparer.OrdinalIgnoreCase)
             .ToList();
-
-        if (!autoOrder)
-            return new OrderedPlan(baseOrder, [], []);
 
         // table -> first node that creates it
         var provider = new Dictionary<string, ScriptNode>();
@@ -95,19 +169,20 @@ public static class ScriptDependencyResolver
             foreach (var t in CreatedTables(n.Sql))
                 provider.TryAdd(t, n);
 
-        // parent -> child edges, only when both ends are in the same phase
+        // parent -> child edges, only when both ends share the same object-type rank
+        // (so the FK topo-sort runs within the Table rank, where CREATE/REFERENCES live)
         var edges = new List<DependencyEdge>();
         foreach (var child in baseOrder)
             foreach (var t in ReferencedTables(child.Sql))
                 if (provider.TryGetValue(t, out var parent)
                     && !ReferenceEquals(parent, child)
-                    && parent.Phase == child.Phase)
+                    && rank[parent] == rank[child])
                     edges.Add(new DependencyEdge(parent.Id, child.Id, t));
 
         var ordered = new List<ScriptNode>();
         var cycle = new List<string>();
 
-        foreach (var group in baseOrder.GroupBy(n => n.Phase).OrderBy(g => g.Key))
+        foreach (var group in baseOrder.GroupBy(n => rank[n]).OrderBy(g => g.Key))
         {
             var groupNodes = group.ToList(); // already in baseOrder within the group
             var ids = groupNodes.Select(n => n.Id).ToHashSet();

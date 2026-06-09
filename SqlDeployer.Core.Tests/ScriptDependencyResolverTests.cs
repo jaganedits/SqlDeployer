@@ -167,4 +167,115 @@ public class ScriptDependencyResolverTests
         Assert.Empty(plan.Cycle);
         Assert.True(order.IndexOf("AB.sql") < order.IndexOf("C.sql"));
     }
+
+    // ---- Object-type classification ----
+
+    [Theory]
+    [InlineData("CREATE PARTITION SCHEME PartitionBymonth AS PARTITION PF ALL TO ([PRIMARY]);", SqlObjectKind.PartitionInfra)]
+    [InlineData("CREATE PARTITION FUNCTION PF (datetime) AS RANGE RIGHT FOR VALUES ('2026-01-01');", SqlObjectKind.PartitionInfra)]
+    [InlineData("ALTER DATABASE [db] ADD FILEGROUP FG_2026;", SqlObjectKind.PartitionInfra)]
+    [InlineData("CREATE SEQUENCE dbo.Seq AS INT START WITH 1;", SqlObjectKind.Sequence)]
+    [InlineData("CREATE FUNCTION dbo.FN_GETMETASUBDESC(@id INT) RETURNS INT AS BEGIN RETURN 1 END", SqlObjectKind.Function)]
+    [InlineData("CREATE OR ALTER FUNCTION dbo.F() RETURNS INT AS BEGIN RETURN 1 END", SqlObjectKind.Function)]
+    [InlineData("CREATE TABLE dbo.X ( id INT );", SqlObjectKind.Table)]
+    [InlineData("ALTER TABLE dbo.X ADD col INT;", SqlObjectKind.AlterTable)]
+    [InlineData("CREATE NONCLUSTERED INDEX IX ON dbo.X(id);", SqlObjectKind.Index)]
+    [InlineData("CREATE VIEW dbo.V AS SELECT 1 AS x;", SqlObjectKind.View)]
+    [InlineData("CREATE OR ALTER VIEW dbo.V AS SELECT 1 AS x;", SqlObjectKind.View)]
+    [InlineData("CREATE PROCEDURE dbo.P AS SELECT 1;", SqlObjectKind.Procedure)]
+    [InlineData("CREATE PROC dbo.P AS SELECT 1;", SqlObjectKind.Procedure)]
+    [InlineData("CREATE TRIGGER trg ON dbo.X AFTER INSERT AS SELECT 1;", SqlObjectKind.Trigger)]
+    [InlineData("INSERT INTO dbo.X (id) VALUES (1);", SqlObjectKind.Data)]
+    [InlineData("UPDATE dbo.X SET id = 2;", SqlObjectKind.Data)]
+    [InlineData("SELECT * FROM dbo.X;", SqlObjectKind.Unknown)]
+    public void Classifies_object_kind(string sql, SqlObjectKind expected)
+        => Assert.Equal(expected, ScriptDependencyResolver.ClassifyKind(sql));
+
+    [Fact]
+    public void Create_plus_alter_classifies_as_table()
+        => Assert.Equal(SqlObjectKind.Table,
+            ScriptDependencyResolver.ClassifyKind(
+                "CREATE TABLE dbo.X (id INT); ALTER TABLE dbo.X ADD c INT;"));
+
+    // ---- Object-type ranking in Resolve ----
+
+    [Fact]
+    public void Function_is_ordered_before_table_that_uses_it_regardless_of_phase()
+    {
+        var func = Node("5. Function/F_ACCOUNTINGYEAR.sql", 5,
+            "CREATE FUNCTION dbo.F_ACCOUNTINGYEAR() RETURNS INT AS BEGIN RETURN 1 END");
+        var table = Node("1. Tables/1. Create/JOURNAL.sql", 1,
+            "CREATE TABLE dbo.JOURNAL ( id INT, yr AS (dbo.F_ACCOUNTINGYEAR()) );");
+
+        var plan = ScriptDependencyResolver.Resolve(new[] { table, func });
+        var order = plan.Order.Select(n => n.Id).ToList();
+
+        Assert.True(order.IndexOf("5. Function/F_ACCOUNTINGYEAR.sql")
+                  < order.IndexOf("1. Tables/1. Create/JOURNAL.sql"));
+    }
+
+    [Fact]
+    public void Partition_infra_is_ordered_before_partitioned_table_in_same_phase()
+    {
+        // Both phase 1; by name "1. Create" < "1. Partitioning Script", so only type
+        // ranking puts the scheme first.
+        var scheme = Node("1. Tables/1. Partitioning Script/5. Create Partition Scheme.sql", 1,
+            "CREATE PARTITION SCHEME PartitionBymonth AS PARTITION PF ALL TO ([PRIMARY]);");
+        var table = Node("1. Tables/1. Create/SALESINVOICE.sql", 1,
+            "CREATE TABLE dbo.SALESINVOICE ( id INT ) ON PartitionBymonth(id);");
+
+        var plan = ScriptDependencyResolver.Resolve(new[] { table, scheme });
+        var order = plan.Order.Select(n => n.Id).ToList();
+
+        Assert.True(order.IndexOf("1. Tables/1. Partitioning Script/5. Create Partition Scheme.sql")
+                  < order.IndexOf("1. Tables/1. Create/SALESINVOICE.sql"));
+    }
+
+    [Fact]
+    public void Table_is_ordered_before_view_then_procedure()
+    {
+        var view = Node("2. Views/V.sql", 2, "CREATE VIEW dbo.V AS SELECT id FROM dbo.X;");
+        var proc = Node("3. SP/P.sql", 3, "CREATE PROCEDURE dbo.P AS SELECT id FROM dbo.X;");
+        var table = Node("1. Tables/X.sql", 1, "CREATE TABLE dbo.X ( id INT );");
+
+        var plan = ScriptDependencyResolver.Resolve(new[] { proc, view, table });
+        var order = plan.Order.Select(n => n.Id).ToList();
+
+        Assert.True(order.IndexOf("1. Tables/X.sql") < order.IndexOf("2. Views/V.sql"));
+        Assert.True(order.IndexOf("2. Views/V.sql") < order.IndexOf("3. SP/P.sql"));
+    }
+
+    [Fact]
+    public void Same_kind_orders_by_folder_phase_then_name()
+    {
+        var nested = Node("1. Tables/1. Partitioning Script/4. Create Partition Function.sql", 1,
+            "CREATE PARTITION FUNCTION PF (int) AS RANGE RIGHT FOR VALUES (1);");
+        var topLevel = Node("11.Partition_Script/Partition_Script_2026.sql", 11,
+            "CREATE PARTITION SCHEME PS AS PARTITION PF ALL TO ([PRIMARY]);");
+
+        var plan = ScriptDependencyResolver.Resolve(new[] { topLevel, nested });
+
+        Assert.Equal(
+            new[]
+            {
+                "1. Tables/1. Partitioning Script/4. Create Partition Function.sql",
+                "11.Partition_Script/Partition_Script_2026.sql",
+            },
+            plan.Order.Select(n => n.Id));
+    }
+
+    [Fact]
+    public void FK_topo_sort_still_applies_within_the_table_rank()
+    {
+        var parent = Node("Planmaster.sql", 5, "CREATE TABLE Planmaster ( planid INT PRIMARY KEY );");
+        var child = Node("PlanFeatureDetail.sql", 1,
+            "CREATE TABLE planfeaturedetail ( planid INT, CONSTRAINT fk FOREIGN KEY (planid) REFERENCES planmaster(planid) );");
+
+        var plan = ScriptDependencyResolver.Resolve(new[] { child, parent });
+        var order = plan.Order.Select(n => n.Id).ToList();
+
+        // Both are Table rank; FK edge wins over the differing folder phase.
+        Assert.True(order.IndexOf("Planmaster.sql") < order.IndexOf("PlanFeatureDetail.sql"));
+        Assert.Empty(plan.Cycle);
+    }
 }
