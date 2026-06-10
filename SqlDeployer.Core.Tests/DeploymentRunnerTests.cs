@@ -128,4 +128,27 @@ public class DeploymentRunnerTests
         Assert.Empty(result.Failed);
         Assert.Equal(new[] { "002", "003" }, result.NotRun);
     }
+
+    [Fact]
+    public async Task First_progress_report_carries_the_full_plan()
+    {
+        var fake = new FakeSqlDeployer { Pending = { Script("001"), Script("002") } };
+        var runner = new DeploymentRunner(fake);
+        var updates = new List<DeploymentProgress>();
+        // Synchronous capture (Progress<T> posts async; a plain lambda keeps order).
+        var progress = new SyncCapture(updates);
+
+        await runner.RunAsync("cs", "path", "GUI", progress, CancellationToken.None);
+
+        Assert.NotNull(updates[0].Plan);
+        Assert.Equal(new[] { "001", "002" }, updates[0].Plan!);
+        Assert.All(updates.Skip(1), u => Assert.Null(u.Plan));
+    }
+
+    private sealed class SyncCapture : IProgress<DeploymentProgress>
+    {
+        private readonly List<DeploymentProgress> _sink;
+        public SyncCapture(List<DeploymentProgress> sink) => _sink = sink;
+        public void Report(DeploymentProgress value) => _sink.Add(value);
+    }
 }

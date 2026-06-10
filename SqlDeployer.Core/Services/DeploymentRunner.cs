@@ -29,6 +29,7 @@ public class DeploymentRunner
             return new DeploymentResult(0, 0, Cancelled: false, NoPendingScripts: true);
 
         var planIds = pending.Select(p => p.Version).ToList();
+        progress.Report(new DeploymentProgress(0, pending.Count, string.Empty, Plan: planIds));
         var succeeded = new List<string>();
         var failed = new List<string>();
 
