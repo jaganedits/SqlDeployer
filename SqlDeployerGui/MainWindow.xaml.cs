@@ -94,10 +94,18 @@ public sealed partial class MainWindow : Window
 
     private async void UpdateRestart_Click(object sender, RoutedEventArgs e)
     {
-        if (_updateUrl is not null)
-            await Windows.System.Launcher.LaunchUriAsync(new Uri(_updateUrl));
-        else
-            App.Updates.ApplyAndRestart();
+        try
+        {
+            if (_updateUrl is not null)
+                await Windows.System.Launcher.LaunchUriAsync(new Uri(_updateUrl));
+            else
+                App.Updates.ApplyAndRestart();
+        }
+        catch
+        {
+            // Never crash the app from the banner button; worst case the user
+            // visits the releases page manually.
+        }
     }
 
     // Selects the Deploy item (which navigates the frame via Nav_SelectionChanged).

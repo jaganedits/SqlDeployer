@@ -77,9 +77,13 @@ public sealed class UpdateService
                 return new UpdateResult(UpdateStatus.Failed, null);
 
             var current = Assembly.GetExecutingAssembly().GetName().Version ?? new Version(0, 0);
+            // html_url comes from an external API; only pass on a well-formed
+            // absolute URL so the banner's Download button can't throw on launch.
+            var url = Uri.TryCreate(release!.Value.Url, UriKind.Absolute, out var parsed)
+                ? parsed.ToString()
+                : RepoUrl + "/releases/latest";
             return UpdateCheck.IsNewer(latest, current)
-                ? new UpdateResult(UpdateStatus.UpdateAvailable, latest.ToString(3),
-                    release!.Value.Url ?? RepoUrl + "/releases/latest")
+                ? new UpdateResult(UpdateStatus.UpdateAvailable, latest.ToString(3), url)
                 : new UpdateResult(UpdateStatus.UpToDate, null);
         }
         catch
