@@ -421,12 +421,4 @@ public partial class DeployViewModel : ObservableObject
         }
     }
 
-    // Synchronous IProgress so the UI/log updates happen inline on the calling
-    // thread (WinUI marshals via bindings; tests need deterministic ordering).
-    private sealed class SyncProgress<T> : IProgress<T>
-    {
-        private readonly Action<T> _handler;
-        public SyncProgress(Action<T> handler) => _handler = handler;
-        public void Report(T value) => _handler(value);
-    }
 }
