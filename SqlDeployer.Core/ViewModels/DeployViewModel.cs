@@ -220,6 +220,9 @@ public partial class DeployViewModel : ObservableObject
 
             if (result.NoPendingScripts)
             {
+                // LogPlanPreview prefilled from disk without DB knowledge; nothing
+                // is actually pending, so drop the prefill.
+                PendingLog.Clear();
                 Status = "No pending scripts.";
                 await LogScanSummary(cs);
             }
@@ -247,6 +250,8 @@ public partial class DeployViewModel : ObservableObject
         }
         catch (Exception ex)
         {
+            // PendingLog is left as-is on a hard failure: the remaining entries are
+            // exactly the scripts that are still re-runnable.
             Status = "Deployment failed.";
             ShowResult($"Deployment failed: {ex.Message}", LogKind.Error);
             _notifier.Notify(DeployNotificationKind.Failed,

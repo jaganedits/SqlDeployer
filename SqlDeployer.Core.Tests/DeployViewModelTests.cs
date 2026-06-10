@@ -491,6 +491,25 @@ public class DeployViewModelTests
     }
 
     [Fact]
+    public async Task No_pending_scripts_clears_the_prefilled_pending_log()
+    {
+        // Disk has scripts (so the plan preview prefills), but nothing is pending
+        // (all already deployed) — the stale prefill must not remain visible.
+        var tempDir = Directory.CreateTempSubdirectory().FullName;
+        File.WriteAllText(Path.Combine(tempDir, "001_a.sql"), "CREATE TABLE dbo.A (Id INT);");
+        var deployer = new FakeSqlDeployer { Pending = new() };
+        var vm = NewVm(deployer: deployer);
+        vm.Server = "s"; vm.Database = "d"; vm.ScriptPath = tempDir;
+
+        await vm.DeployCommand.ExecuteAsync(null);
+
+        Assert.Empty(vm.PendingLog);
+        Assert.Equal("Pending (0)", vm.PendingHeader);
+
+        Directory.Delete(tempDir, true);
+    }
+
+    [Fact]
     public async Task Pending_log_is_cleared_between_runs()
     {
         var tempDir = Directory.CreateTempSubdirectory().FullName;
