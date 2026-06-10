@@ -31,7 +31,7 @@
                       Title="Update available"
                       Margin="12,0,12,8">
             <muxc:InfoBar.ActionButton>
-                <Button Content="Restart to update" Click="UpdateRestart_Click" />
+                <Button x:Name="UpdateActionButton" Content="Restart to update" Click="UpdateRestart_Click" />
             </muxc:InfoBar.ActionButton>
         </muxc:InfoBar>
 

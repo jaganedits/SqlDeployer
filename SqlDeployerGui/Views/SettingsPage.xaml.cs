@@ -30,6 +30,7 @@ public sealed partial class SettingsPage : Page
         var version = ResolveVersion();
         VersionLine.Text = $"Version {version}   •   Built {ResolveBuildDate():MMM d, yyyy}";
         AboutExpander.Description = $"Version {version} • developers";
+        UpdateStatusText.Text = $"Current version: {version}";
     }
 
     private void AccentSwatch_Click(object sender, Microsoft.UI.Xaml.RoutedEventArgs e)
@@ -68,15 +69,16 @@ public sealed partial class SettingsPage : Page
             case UpdateStatus.UpToDate:
                 UpdateStatusText.Text = "You're up to date.";
                 break;
-            case UpdateStatus.NotInstalled:
-                UpdateStatusText.Text = "Updates apply only to the installed app.";
-                break;
             case UpdateStatus.Failed:
                 UpdateStatusText.Text = "Couldn't check — try again later.";
                 break;
+            case UpdateStatus.UpdateAvailable:
+                UpdateStatusText.Text = $"Version {result.Version} is available.";
+                App.Window.ShowUpdateBanner(result);
+                break;
             case UpdateStatus.UpdateReady:
                 UpdateStatusText.Text = $"Version {result.Version} downloaded.";
-                App.Window.ShowUpdateBanner(result.Version!);
+                App.Window.ShowUpdateBanner(result);
                 break;
         }
     }

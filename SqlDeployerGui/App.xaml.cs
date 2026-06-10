@@ -129,15 +129,14 @@ public partial class App : Application
     private static async Task CheckForUpdatesAsync()
     {
         var result = await Updates.CheckAndDownloadAsync();
-        if (result.Status != UpdateStatus.UpdateReady) return;
+        if (result.Status is not (UpdateStatus.UpdateReady or UpdateStatus.UpdateAvailable)) return;
 
         // This runs from a DispatcherQueueTimer tick where SynchronizationContext can
         // be null, so the continuation after the await above may resume off the UI
         // thread. Touching the banner there throws (and is swallowed by the
-        // fire-and-forget caller), which is why the startup banner never appeared
-        // while the Settings check — invoked on the UI thread — worked. Marshal the
-        // UI update back onto the window's dispatcher explicitly.
-        Window.DispatcherQueue.TryEnqueue(() => Window.ShowUpdateBanner(result.Version!));
+        // fire-and-forget caller). Marshal the UI update back onto the window's
+        // dispatcher explicitly.
+        Window.DispatcherQueue.TryEnqueue(() => Window.ShowUpdateBanner(result));
     }
 
     public static void ApplyTheme(string theme)

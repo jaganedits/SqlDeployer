@@ -4,6 +4,7 @@ using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Media;
 using Microsoft.UI.Xaml.Media.Imaging;
+using SqlDeployerGui.Services;
 using SqlDeployerGui.Views;
 using Windows.Graphics;
 using Windows.UI;
@@ -69,15 +70,35 @@ public sealed partial class MainWindow : Window
         titleBar.ButtonPressedBackgroundColor = pressedBg;
     }
 
-    // Surfaces a downloaded update as a dismissible top banner with a restart action.
-    public void ShowUpdateBanner(string version)
+    private string? _updateUrl;
+
+    // Surfaces an update as a dismissible top banner. Two modes: a Velopack-staged
+    // update offers "Restart to update"; a portable/dev detection (UpdateAvailable)
+    // offers "Download", opening the release page in the browser.
+    public void ShowUpdateBanner(UpdateResult result)
     {
-        UpdateBanner.Message = $"SqlDeployer {version} has been downloaded. Restart to apply it.";
+        if (result.Status == UpdateStatus.UpdateAvailable)
+        {
+            _updateUrl = result.Url;
+            UpdateBanner.Message = $"SqlDeployer {result.Version} is available. Download it from GitHub.";
+            UpdateActionButton.Content = "Download";
+        }
+        else
+        {
+            _updateUrl = null;
+            UpdateBanner.Message = $"SqlDeployer {result.Version} has been downloaded. Restart to apply it.";
+            UpdateActionButton.Content = "Restart to update";
+        }
         UpdateBanner.IsOpen = true;
     }
 
-    private void UpdateRestart_Click(object sender, RoutedEventArgs e)
-        => App.Updates.ApplyAndRestart();
+    private async void UpdateRestart_Click(object sender, RoutedEventArgs e)
+    {
+        if (_updateUrl is not null)
+            await Windows.System.Launcher.LaunchUriAsync(new Uri(_updateUrl));
+        else
+            App.Updates.ApplyAndRestart();
+    }
 
     // Selects the Deploy item (which navigates the frame via Nav_SelectionChanged).
     public void GoToDeploy()
