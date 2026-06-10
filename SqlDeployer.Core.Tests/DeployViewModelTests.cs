@@ -428,4 +428,88 @@ public class DeployViewModelTests
         Assert.False(deployer.LastAutoOrder);
         Directory.Delete(tempDir, true);
     }
+
+    [Fact]
+    public async Task Pending_log_drains_to_empty_on_full_success()
+    {
+        var tempDir = Directory.CreateTempSubdirectory().FullName;
+        var deployer = new FakeSqlDeployer { Pending = { Script("001"), Script("002") } };
+        var vm = NewVm(deployer: deployer);
+        vm.Server = "s"; vm.Database = "d"; vm.ScriptPath = tempDir;
+
+        await vm.DeployCommand.ExecuteAsync(null);
+
+        Assert.Empty(vm.PendingLog);
+        Assert.Equal("Pending (0)", vm.PendingHeader);
+
+        Directory.Delete(tempDir, true);
+    }
+
+    [Fact]
+    public async Task Failed_scripts_remain_in_pending_log()
+    {
+        var tempDir = Directory.CreateTempSubdirectory().FullName;
+        var deployer = new FakeSqlDeployer
+        {
+            Pending = { Script("001"), Script("002"), Script("003") },
+            FailingVersions = { "002" }
+        };
+        var vm = NewVm(deployer: deployer);
+        vm.Server = "s"; vm.Database = "d"; vm.ScriptPath = tempDir;
+
+        await vm.DeployCommand.ExecuteAsync(null);
+
+        var entry = Assert.Single(vm.PendingLog);
+        Assert.Equal("002", entry.Message);
+        Assert.Equal("Pending (1)", vm.PendingHeader);
+
+        Directory.Delete(tempDir, true);
+    }
+
+    [Fact]
+    public async Task Aborted_deploy_fills_pending_log_from_the_discovered_plan()
+    {
+        // Real .sql files on disk so the plan preview can discover them; the deploy
+        // itself aborts before running (GetPendingScripts throws).
+        var tempDir = Directory.CreateTempSubdirectory().FullName;
+        File.WriteAllText(Path.Combine(tempDir, "001_a.sql"), "CREATE TABLE dbo.A (Id INT);");
+        File.WriteAllText(Path.Combine(tempDir, "002_b.sql"), "CREATE TABLE dbo.B (Id INT);");
+        var deployer = new FakeSqlDeployer
+        {
+            GetPendingError = new InvalidOperationException("Foreign-key cycle detected among: x")
+        };
+        var vm = NewVm(deployer: deployer);
+        vm.Server = "s"; vm.Database = "d"; vm.ScriptPath = tempDir;
+
+        await vm.DeployCommand.ExecuteAsync(null);
+
+        Assert.Equal(2, vm.PendingLog.Count);
+        Assert.Contains(vm.PendingLog, e => e.Message == "001_a.sql");
+        Assert.Contains(vm.PendingLog, e => e.Message == "002_b.sql");
+
+        Directory.Delete(tempDir, true);
+    }
+
+    [Fact]
+    public async Task Pending_log_is_cleared_between_runs()
+    {
+        var tempDir = Directory.CreateTempSubdirectory().FullName;
+        var deployer = new FakeSqlDeployer
+        {
+            Pending = { Script("001") },
+            FailingVersions = { "001" }
+        };
+        var vm = NewVm(deployer: deployer);
+        vm.Server = "s"; vm.Database = "d"; vm.ScriptPath = tempDir;
+
+        await vm.DeployCommand.ExecuteAsync(null);
+        Assert.Single(vm.PendingLog);
+
+        // Second run succeeds: the stale pending entry must not linger.
+        deployer.FailingVersions.Clear();
+        await vm.DeployCommand.ExecuteAsync(null);
+        Assert.Empty(vm.PendingLog);
+
+        Directory.Delete(tempDir, true);
+    }
 }

@@ -70,6 +70,12 @@ public partial class DeployViewModel : ObservableObject
 
     public ObservableCollection<LogEntry> SuccessLog { get; } = new();
     public ObservableCollection<LogEntry> ErrorLog { get; } = new();
+
+    // Scripts planned for the current/last run that are not deployed yet: fills
+    // from the runner's plan report, drains as scripts succeed. After a run, what
+    // remains is exactly the failed + never-attempted files (still re-runnable).
+    public ObservableCollection<LogEntry> PendingLog { get; } = new();
+
     public ObservableCollection<string> Databases { get; } = new();
 
     // Servers from previously-saved connections, for the Server autocomplete.
@@ -79,6 +85,7 @@ public partial class DeployViewModel : ObservableObject
     // original WinForms "Success Log(n)" / "Error Log(n)" segmented tabs.
     public string SuccessHeader => $"Success ({SuccessLog.Count})";
     public string ErrorHeader => $"Errors ({ErrorLog.Count})";
+    public string PendingHeader => $"Pending ({PendingLog.Count})";
 
     public DeployViewModel(DeploymentRunner runner, ISqlDeployer deployer, IDialogService dialogs, SettingsService settings, IDeployNotifier notifier)
     {
@@ -90,6 +97,7 @@ public partial class DeployViewModel : ObservableObject
 
         SuccessLog.CollectionChanged += (_, _) => OnPropertyChanged(nameof(SuccessHeader));
         ErrorLog.CollectionChanged += (_, _) => OnPropertyChanged(nameof(ErrorHeader));
+        PendingLog.CollectionChanged += (_, _) => OnPropertyChanged(nameof(PendingHeader));
 
         var loaded = _settings.Load();
         _autoOrderByDependencies = loaded.AutoOrderByDependencies;
@@ -192,6 +200,7 @@ public partial class DeployViewModel : ObservableObject
 
         SuccessLog.Clear();
         ErrorLog.Clear();
+        PendingLog.Clear();
         ProgressValue = 0;
         IsResultOpen = false;
         IsBusy = true;
@@ -216,7 +225,7 @@ public partial class DeployViewModel : ObservableObject
             }
             else if (result.Cancelled)
             {
-                Status = "Deployment cancelled.";
+                Status = $"Deployment cancelled — {PendingLog.Count} script(s) not run.";
                 ShowResult("Deployment cancelled.", LogKind.Info);
                 _notifier.Notify(DeployNotificationKind.Stopped,
                     "Deployment stopped",
@@ -297,6 +306,15 @@ public partial class DeployViewModel : ObservableObject
 
     private void OnProgress(DeploymentProgress p)
     {
+        if (p.Plan is not null)
+        {
+            PendingLog.Clear();
+            foreach (var id in p.Plan)
+                PendingLog.Add(new LogEntry(id, LogKind.Info));
+            ProgressMax = p.Total;
+            return;
+        }
+
         ProgressMax = p.Total;
         if (p.Success is null)
         {
@@ -306,7 +324,11 @@ public partial class DeployViewModel : ObservableObject
 
         ProgressValue = p.Current;
         if (p.Success == true)
+        {
+            var pendingEntry = PendingLog.FirstOrDefault(x => x.Message == p.FileName);
+            if (pendingEntry is not null) PendingLog.Remove(pendingEntry);
             SuccessLog.Add(new LogEntry($"{p.FileName} :: Processed successfully", LogKind.Success));
+        }
         else
             ErrorLog.Add(new LogEntry($"{p.FileName} :: {p.Error}", LogKind.Error));
     }
@@ -408,6 +430,14 @@ public partial class DeployViewModel : ObservableObject
             var nodes = SqlServerDeployer.DiscoverScripts(ScriptPath);
             var plan = ScriptDependencyResolver.Resolve(nodes, AutoOrderByDependencies);
             if (plan.Order.Count == 0) return; // nothing to deploy; skip the preview noise
+
+            // Best-effort prefill: replaced by the runner's accurate plan report
+            // (which also excludes already-deployed scripts) moments later, but it
+            // survives when the deploy aborts before running (cycle, bad folder).
+            PendingLog.Clear();
+            foreach (var n in plan.Order)
+                if (!SqlServerDeployer.IsRollbackScript(n.Id))
+                    PendingLog.Add(new LogEntry(n.Id, LogKind.Info));
 
             var ordering = AutoOrderByDependencies ? "dependency-ordered" : "folder + name order";
             SuccessLog.Add(new LogEntry($"Plan: {plan.Order.Count} script(s), {ordering}.", LogKind.Info));

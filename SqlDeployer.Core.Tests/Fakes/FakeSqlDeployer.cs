@@ -23,6 +23,7 @@ public class FakeSqlDeployer : ISqlDeployer
         bool includeDeployed = false,
         bool autoOrder = true)
     {
+        if (GetPendingError is not null) throw GetPendingError;
         LastIncludeDeployed = includeDeployed;
         LastAutoOrder = autoOrder;
         return Task.FromResult(new List<DeploymentScript>(Pending));
@@ -55,6 +56,7 @@ public class FakeSqlDeployer : ISqlDeployer
 
     public List<string> Databases { get; set; } = new();
     public Exception? GetDatabasesError { get; set; }
+    public Exception? GetPendingError { get; set; }
 
     public Task<List<string>> GetDatabases(string connectionString)
     {

@@ -64,7 +64,7 @@ public class SqlServerDeployer : ISqlDeployer
 
     // A script whose file name (sans extension) ends with "_rollback" is a rollback
     // script and is never auto-deployed.
-    private static bool IsRollbackScript(string id) =>
+    public static bool IsRollbackScript(string id) =>
         Path.GetFileNameWithoutExtension(id).EndsWith("_rollback", StringComparison.OrdinalIgnoreCase);
 
     // Leaf filenames that occur exactly once across the discovered scripts. Used to
