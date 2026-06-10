@@ -277,6 +277,33 @@
                                         </ListView.ItemTemplate>
                                     </ListView>
                                 </muxc:PivotItem>
+                                <muxc:PivotItem>
+                                    <muxc:PivotItem.Header>
+                                        <TextBlock Text="{x:Bind Vm.PendingHeader, Mode=OneWay}" FontSize="14" />
+                                    </muxc:PivotItem.Header>
+                                    <ListView x:Name="PendingList" Style="{StaticResource TerminalList}"
+                                              ItemsSource="{Binding PendingLog}">
+                                        <ListView.ItemContainerTransitions>
+                                            <TransitionCollection>
+                                                <anim:AddDeleteThemeTransition />
+                                                <anim:EntranceThemeTransition FromVerticalOffset="8" />
+                                            </TransitionCollection>
+                                        </ListView.ItemContainerTransitions>
+                                        <ListView.ItemTemplate>
+                                            <DataTemplate x:DataType="models:LogEntry">
+                                                <StackPanel Orientation="Horizontal" Spacing="8">
+                                                    <TextBlock Text="&#xE823;" FontFamily="Segoe Fluent Icons"
+                                                               FontSize="11" VerticalAlignment="Top" Margin="0,3,0,0"
+                                                               Foreground="{Binding Kind, Converter={StaticResource LogBrush}}" />
+                                                    <TextBlock Text="{x:Bind Message}" FontFamily="Cascadia Mono, Consolas"
+                                                               FontSize="13"
+                                                               Foreground="{Binding Kind, Converter={StaticResource LogBrush}}"
+                                                               TextWrapping="Wrap" IsTextSelectionEnabled="True" />
+                                                </StackPanel>
+                                            </DataTemplate>
+                                        </ListView.ItemTemplate>
+                                    </ListView>
+                                </muxc:PivotItem>
                             </muxc:Pivot>
 
                             <!-- Terminal prompt line with a blinking caret -->

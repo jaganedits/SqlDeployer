@@ -122,7 +122,12 @@ public sealed partial class DeployPage : Page
 
     private void CopyOutput_Click(object sender, RoutedEventArgs e)
     {
-        var entries = OutputPivot.SelectedIndex == 1 ? Vm.ErrorLog : Vm.SuccessLog;
+        var entries = OutputPivot.SelectedIndex switch
+        {
+            1 => Vm.ErrorLog,
+            2 => (IReadOnlyList<LogEntry>)Vm.PendingLog,
+            _ => Vm.SuccessLog
+        };
         var text = string.Join(Environment.NewLine, entries.Select(x => x.Message));
 
         var data = new DataPackage();
