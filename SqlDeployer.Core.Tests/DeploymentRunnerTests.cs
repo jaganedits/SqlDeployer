@@ -89,4 +89,43 @@ public class DeploymentRunnerTests
         Assert.True(result.Cancelled);
         Assert.Equal(1, fake.Executed.Count); // stopped after the first
     }
+
+    [Fact]
+    public async Task Result_lists_succeeded_and_failed_script_ids()
+    {
+        var fake = new FakeSqlDeployer
+        {
+            Pending = { Script("001"), Script("002"), Script("003") },
+            FailingVersions = { "002" }
+        };
+        var runner = new DeploymentRunner(fake);
+
+        var result = await runner.RunAsync("cs", "path", "GUI",
+            new Progress<DeploymentProgress>(), CancellationToken.None);
+
+        Assert.Equal(new[] { "001", "003" }, result.Succeeded);
+        Assert.Equal(new[] { "002" }, result.Failed);
+        Assert.Empty(result.NotRun);
+    }
+
+    [Fact]
+    public async Task Cancellation_lists_not_run_scripts()
+    {
+        var cts = new CancellationTokenSource();
+        var fake = new FakeSqlDeployer
+        {
+            Pending = { Script("001"), Script("002"), Script("003") },
+            // Cancels while 001 executes: 001 completes, 002/003 never run.
+            OnExecute = _ => { cts.Cancel(); return Task.CompletedTask; }
+        };
+        var runner = new DeploymentRunner(fake);
+
+        var result = await runner.RunAsync("cs", "path", "GUI",
+            new Progress<DeploymentProgress>(), cts.Token);
+
+        Assert.True(result.Cancelled);
+        Assert.Equal(new[] { "001" }, result.Succeeded);
+        Assert.Empty(result.Failed);
+        Assert.Equal(new[] { "002", "003" }, result.NotRun);
+    }
 }

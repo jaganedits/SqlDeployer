@@ -28,12 +28,23 @@ public class DeploymentRunner
         if (pending.Count == 0)
             return new DeploymentResult(0, 0, Cancelled: false, NoPendingScripts: true);
 
-        int success = 0, failed = 0;
+        var planIds = pending.Select(p => p.Version).ToList();
+        var succeeded = new List<string>();
+        var failed = new List<string>();
+
+        // NotRun = planned but neither succeeded nor failed (only on early stop).
+        DeploymentResult Finish(bool cancelled) =>
+            new(succeeded.Count, failed.Count, cancelled, NoPendingScripts: false)
+            {
+                Succeeded = succeeded,
+                Failed = failed,
+                NotRun = planIds.Where(id => !succeeded.Contains(id) && !failed.Contains(id)).ToList()
+            };
 
         for (int i = 0; i < pending.Count; i++)
         {
             if (cancellationToken.IsCancellationRequested)
-                return new DeploymentResult(success, failed, Cancelled: true, NoPendingScripts: false);
+                return Finish(cancelled: true);
 
             var script = pending[i];
             var displayName = script.Version; // relative-path identity, phase-qualified
@@ -44,16 +55,16 @@ public class DeploymentRunner
             {
                 await _deployer.ExecuteScript(
                     connectionString, script.FileName, script.Version, environment, cancellationToken);
-                success++;
+                succeeded.Add(script.Version);
                 progress.Report(new DeploymentProgress(i + 1, pending.Count, displayName, Success: true));
             }
             catch (OperationCanceledException)
             {
-                return new DeploymentResult(success, failed, Cancelled: true, NoPendingScripts: false);
+                return Finish(cancelled: true);
             }
             catch (Exception ex)
             {
-                failed++;
+                failed.Add(script.Version);
                 progress.Report(new DeploymentProgress(i + 1, pending.Count, displayName, Success: false, Error: ex.Message));
                 // Continue past failures: run everything that can run and collect every
                 // error, so the user sees all failures at once, then fixes and re-runs.
@@ -61,6 +72,6 @@ public class DeploymentRunner
             }
         }
 
-        return new DeploymentResult(success, failed, Cancelled: false, NoPendingScripts: false);
+        return Finish(cancelled: false);
     }
 }
